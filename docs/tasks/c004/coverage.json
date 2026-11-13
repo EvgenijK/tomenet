@@ -1,0 +1,264 @@
+{
+  "schemaVersion": 1,
+  "stage": "C004",
+  "status": "accepted",
+  "snapshotKind": "local-planning-only",
+  "snapshotDate": "2026-11-09",
+  "canonicalSha256": {
+    "stages.json": "e17967e945c425053f8cbe9f4730d5d919fe6fc9598dbf8d694673741b7dcf21",
+    "manifest.json": "68efed03ecade79974e62b9f69a084a47cfa9262952b30b6436a2f2ac5b0b222",
+    "native-coverage.json": "2d7d5ae3e5f5739c93ba512e756f86ba1960dcb9109e5a46b77717e76f103cab",
+    "reconciliation.json": "f44cd0e34c60a291574df42a619ae8f7ea7a5ae58afad3895818700be85743f0"
+  },
+  "reviewedCapabilityCount": 3,
+  "ownedCapabilityIds": [
+    "capability.preferences.load",
+    "capability.preferences.bootstrap",
+    "capability.preferences.include-failure"
+  ],
+  "ticketOwnership": {
+    "capability.preferences.load": "SV-C004-001",
+    "capability.preferences.include-failure": "SV-C004-002",
+    "capability.preferences.bootstrap": "SV-C004-003"
+  },
+  "coverage": [
+    {
+      "capabilityId": "capability.preferences.load",
+      "acceptanceStage": "C004",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-process-pref-file-aux-aux-3df064",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s837",
+          "source.allocation-b.s838"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Ordinary explicit PRF loading preserves % includes, option/mapping records, !/? permitted queued actions and # message effects, exact gates and baseline warnings; this is not migration. Full outcome allocation: stage C004. Ordinary PRF load действует в B profile/macros; baseline permitted execution нельзя заменить data-only migration."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.preferences.load.result",
+          "description": "Ordinary explicit PRF loading preserves % includes, option/mapping records, !/? permitted queued actions and # message effects, exact gates and baseline warnings; this is not migration.",
+          "sources": [
+            "source.behavior.settings-process-pref-file-aux-aux-3df064",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.preferences.load.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-process-pref-file-aux-aux-3df064",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.preferences.load.allocation-checks",
+          "description": "%,X/Y,mapping,!/?,# records: proper warnings, queues and original execution gates; macro bytes and command order. Имеется отдельный caller regression для C/D actions, primitive load не принимает их игровые результаты.",
+          "sources": [
+            "source.behavior.settings-process-pref-file-aux-aux-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s837",
+            "source.allocation-b.s838"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.preferences.bootstrap",
+      "acceptanceStage": "C004",
+      "prerequisites": [
+        "capability.settings.load",
+        "capability.settings.defaults",
+        "capability.settings.aliases",
+        "capability.preferences.load"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-process-pref-file-aux-aux-3df064",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s837",
+          "source.allocation-b.s838"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Load defaults, shipped bootstrap, own global/system/character OPT and shared macro/resource layers in approved order; includes retain provenance and owner; W records create no Terms. Full outcome allocation: stage C004. B init устанавливает option/mapping/macro precedence до первого игрового command и Send_options."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.preferences.bootstrap.result",
+          "description": "Load defaults, shipped bootstrap, own global/system/character OPT and shared macro/resource layers in approved order; includes retain provenance and owner; W records create no Terms.",
+          "sources": [
+            "source.behavior.settings-process-pref-file-aux-aux-3df064",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.preferences.bootstrap.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-process-pref-file-aux-aux-3df064",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.preferences.bootstrap.allocation-checks",
+          "description": "Defaults→bootstrap→own global/system/character OPT→shared macros; legacy global.opt/options.prf не протекают. Имеется отдельный caller regression для C/D actions, primitive load не принимает их игровые результаты.",
+          "sources": [
+            "source.behavior.settings-process-pref-file-aux-aux-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s837",
+            "source.allocation-b.s838"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.preferences.include-failure",
+      "acceptanceStage": "C004",
+      "prerequisites": [
+        "capability.preferences.load"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-process-pref-file-aux-aux-3df064",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s837",
+          "source.allocation-b.s838"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Report missing/invalid/recursive includes through baseline load behavior without executing migration input; linked import group is skipped on missing/cyclic/out-of-source includes. Full outcome allocation: stage C004. B bootstrap/import уже обрабатывает missing/recursive includes; errors не могут отложиться."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.preferences.include-failure.result",
+          "description": "Report missing/invalid/recursive includes through baseline load behavior without executing migration input; linked import group is skipped on missing/cyclic/out-of-source includes.",
+          "sources": [
+            "source.behavior.settings-process-pref-file-aux-aux-3df064",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.preferences.include-failure.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-process-pref-file-aux-aux-3df064",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.preferences.include-failure.allocation-checks",
+          "description": "Missing/invalid/recursive include при normal load; migration skips linked group and executes nothing. Имеется отдельный caller regression для C/D actions, primitive load не принимает их игровые результаты.",
+          "sources": [
+            "source.behavior.settings-process-pref-file-aux-aux-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s837",
+            "source.allocation-b.s838"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    }
+  ],
+  "planningBoundary": {
+    "canonicalAllocationChanged": false,
+    "nativeEvidenceClaimed": false,
+    "lateFlowEvidence": "Remaining implementation/checks are mandatory in owning later-stage plans by explicit user decision on 2026-11-09; not a C004 completion gate",
+    "currentRequiredPlatform": "Linux",
+    "windowsValidation": "deferred by user rule 2026-10-28",
+    "implementationStarted": true
+  },
+  "currentCore": {
+    "date": "2026-11-09",
+    "status": "implemented-and-linux-verified",
+    "evidence": "../../sv-c004-evidence.md",
+    "readiness": "../../sv-stage-c004-acceptance.md",
+    "tickets": {
+      "SV-C004-001": "accepted",
+      "SV-C004-002": "accepted",
+      "SV-C004-003": "accepted",
+      "SV-C004-004": "accepted"
+    },
+    "stageAcceptance": "accepted",
+    "canonicalRegistryChanged": false
+  },
+  "acceptance": {
+    "status": "accepted",
+    "date": "2026-11-09",
+    "authority": "explicit user acceptance after completing the transfer of remaining implementation/checks to following stages",
+    "tickets": [
+      "SV-C004-001",
+      "SV-C004-002",
+      "SV-C004-003",
+      "SV-C004-004"
+    ],
+    "lateFlowEvidenceAcceptanceGate": false,
+    "canonicalRuntimeRegistration": "separate workflow; canonical status unchanged",
+    "userConfirmation": "этот этап считаем принятым"
+  },
+  "integrationPlanning": {
+    "canonicalAllocationChanged": false,
+    "evidenceReturnIsGate": false,
+    "defectsHandledByOwningLaterStage": true,
+    "stageDocuments": {
+      "C005": "../c005/README.md",
+      "C006": "../c006/README.md",
+      "C007": "../c007/README.md",
+      "C011": "../c011/README.md",
+      "C014": "../c014/README.md",
+      "C016": "../c016/README.md",
+      "C044": "../c044/README.md",
+      "C045": "../c045/README.md",
+      "C046": "../c046/README.md",
+      "C047": "../c047/README.md",
+      "C048": "../c048/README.md",
+      "C049": "../c049/README.md",
+      "C050": "../c050/README.md",
+      "C051": "../c051/README.md",
+      "C052": "../c052/README.md",
+      "C053": "../c053/README.md",
+      "C054": "../c054/README.md",
+      "C055": "../c055/README.md"
+    }
+  }
+}

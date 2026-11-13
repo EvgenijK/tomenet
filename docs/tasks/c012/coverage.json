@@ -1,0 +1,1382 @@
+{
+  "schemaVersion": 1,
+  "stage": "C012",
+  "status": "planned",
+  "snapshotKind": "local-planning-only",
+  "snapshotDate": "2026-11-11",
+  "canonicalSha256": {
+    "stages.json": "e17967e945c425053f8cbe9f4730d5d919fe6fc9598dbf8d694673741b7dcf21",
+    "manifest.json": "68efed03ecade79974e62b9f69a084a47cfa9262952b30b6436a2f2ac5b0b222",
+    "native-coverage.json": "2d7d5ae3e5f5739c93ba512e756f86ba1960dcb9109e5a46b77717e76f103cab",
+    "reconciliation.json": "f44cd0e34c60a291574df42a619ae8f7ea7a5ae58afad3895818700be85743f0"
+  },
+  "reviewedCapabilityCount": 27,
+  "reviewedObligationCount": 81,
+  "ownedCapabilityIds": [
+    "capability.status.read-stats",
+    "capability.status.read-armour",
+    "capability.status.read-demographics",
+    "capability.status.read-combat-bonuses",
+    "capability.status.read-experience",
+    "capability.status.read-currency",
+    "capability.status.read-mana",
+    "capability.status.read-confusion",
+    "capability.status.read-poison",
+    "capability.status.read-study",
+    "capability.status.read-blows",
+    "capability.status.read-food",
+    "capability.status.read-fear",
+    "capability.status.read-speed",
+    "capability.status.read-cut",
+    "capability.status.read-blind-hallucination",
+    "capability.status.read-stun",
+    "capability.status.read-monster-health",
+    "capability.status.read-sanity",
+    "capability.status.read-afk",
+    "capability.status.read-encumbrance",
+    "capability.status.read-stamina",
+    "capability.status.read-extra",
+    "capability.status.read-martyr",
+    "capability.status.read-idle",
+    "capability.status.read-indicators",
+    "capability.status.read-live-hp"
+  ],
+  "ticketOwnership": {
+    "capability.status.read-live-hp": "SV-C012-002",
+    "capability.status.read-mana": "SV-C012-002",
+    "capability.status.read-stamina": "SV-C012-002",
+    "capability.status.read-sanity": "SV-C012-002",
+    "capability.status.read-stats": "SV-C012-003",
+    "capability.status.read-armour": "SV-C012-003",
+    "capability.status.read-demographics": "SV-C012-003",
+    "capability.status.read-combat-bonuses": "SV-C012-003",
+    "capability.status.read-experience": "SV-C012-003",
+    "capability.status.read-currency": "SV-C012-003",
+    "capability.status.read-confusion": "SV-C012-004",
+    "capability.status.read-poison": "SV-C012-004",
+    "capability.status.read-study": "SV-C012-004",
+    "capability.status.read-blows": "SV-C012-004",
+    "capability.status.read-food": "SV-C012-004",
+    "capability.status.read-fear": "SV-C012-004",
+    "capability.status.read-speed": "SV-C012-004",
+    "capability.status.read-cut": "SV-C012-004",
+    "capability.status.read-blind-hallucination": "SV-C012-004",
+    "capability.status.read-stun": "SV-C012-004",
+    "capability.status.read-monster-health": "SV-C012-005",
+    "capability.status.read-afk": "SV-C012-005",
+    "capability.status.read-encumbrance": "SV-C012-005",
+    "capability.status.read-extra": "SV-C012-005",
+    "capability.status.read-martyr": "SV-C012-005",
+    "capability.status.read-idle": "SV-C012-005",
+    "capability.status.read-indicators": "SV-C012-005"
+  },
+  "coverage": [
+    {
+      "capabilityId": "capability.status.read-stats",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-stats"
+        ],
+        "serverVersions": [
+          ">= 4.7.4.6.0.0",
+          "older"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read each stat current/max/index/base/temp value with version defaults. Full outcome allocation: stage C012. Receive_stat → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-stats.result",
+          "description": "Read each stat current/max/index/base/temp value with version defaults. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-stats"
+          ]
+        },
+        {
+          "id": "obligation.status.read-stats.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-stats"
+          ]
+        },
+        {
+          "id": "obligation.status.read-stats.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read each stat current/max/index/base/temp value with version defaults.",
+          "sources": [
+            "source.reconciliation.status.read-stats"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-armour",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-armour"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read base armour class and armour bonus. Full outcome allocation: stage C012. Receive_ac → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-armour.result",
+          "description": "Read base armour class and armour bonus. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-armour"
+          ]
+        },
+        {
+          "id": "obligation.status.read-armour.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-armour"
+          ]
+        },
+        {
+          "id": "obligation.status.read-armour.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read base armour class and armour bonus.",
+          "sources": [
+            "source.reconciliation.status.read-armour"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-demographics",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-demographics"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read height, weight, age, social class and source identity text. Full outcome allocation: stage C012. Receive_various → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-demographics.result",
+          "description": "Read height, weight, age, social class and source identity text. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-demographics"
+          ]
+        },
+        {
+          "id": "obligation.status.read-demographics.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-demographics"
+          ]
+        },
+        {
+          "id": "obligation.status.read-demographics.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read height, weight, age, social class and source identity text.",
+          "sources": [
+            "source.reconciliation.status.read-demographics"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-combat-bonuses",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-combat-bonuses"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read melee/ranged/misc hit and damage values without conflating them. Full outcome allocation: stage C012. Receive_plusses → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-combat-bonuses.result",
+          "description": "Read melee/ranged/misc hit and damage values without conflating them. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-combat-bonuses"
+          ]
+        },
+        {
+          "id": "obligation.status.read-combat-bonuses.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-combat-bonuses"
+          ]
+        },
+        {
+          "id": "obligation.status.read-combat-bonuses.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read melee/ranged/misc hit and damage values without conflating them.",
+          "sources": [
+            "source.reconciliation.status.read-combat-bonuses"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-experience",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-experience"
+        ],
+        "serverVersions": [
+          "> 4.5.6.0.0.1",
+          "older"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read level, max levels, experience and next/previous thresholds; preserve old-version defaults. Full outcome allocation: stage C012. Receive_experience → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-experience.result",
+          "description": "Read level, max levels, experience and next/previous thresholds; preserve old-version defaults. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-experience"
+          ]
+        },
+        {
+          "id": "obligation.status.read-experience.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-experience"
+          ]
+        },
+        {
+          "id": "obligation.status.read-experience.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read level, max levels, experience and next/previous thresholds; preserve old-version defaults.",
+          "sources": [
+            "source.reconciliation.status.read-experience"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-currency",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-currency"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read carried gold and bank balance separately. Full outcome allocation: stage C012. Receive_gold → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-currency.result",
+          "description": "Read carried gold and bank balance separately. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-currency"
+          ]
+        },
+        {
+          "id": "obligation.status.read-currency.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-currency"
+          ]
+        },
+        {
+          "id": "obligation.status.read-currency.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read carried gold and bank balance separately.",
+          "sources": [
+            "source.reconciliation.status.read-currency"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-mana",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-mana"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read current/max mana and applicable bar/boost conventions. Full outcome allocation: stage C012. Receive_mp → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-mana.result",
+          "description": "Read current/max mana and applicable bar/boost conventions. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-mana"
+          ]
+        },
+        {
+          "id": "obligation.status.read-mana.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-mana"
+          ]
+        },
+        {
+          "id": "obligation.status.read-mana.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read current/max mana and applicable bar/boost conventions.",
+          "sources": [
+            "source.reconciliation.status.read-mana"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-confusion",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-confusion"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read authoritative confusion condition. Full outcome allocation: stage C012. Receive_confused → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-confusion.result",
+          "description": "Read authoritative confusion condition. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-confusion"
+          ]
+        },
+        {
+          "id": "obligation.status.read-confusion.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-confusion"
+          ]
+        },
+        {
+          "id": "obligation.status.read-confusion.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read authoritative confusion condition.",
+          "sources": [
+            "source.reconciliation.status.read-confusion"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-poison",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-poison"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read authoritative poison condition. Full outcome allocation: stage C012. Receive_poison → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-poison.result",
+          "description": "Read authoritative poison condition. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-poison"
+          ]
+        },
+        {
+          "id": "obligation.status.read-poison.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-poison"
+          ]
+        },
+        {
+          "id": "obligation.status.read-poison.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read authoritative poison condition.",
+          "sources": [
+            "source.reconciliation.status.read-poison"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-study",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-study"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read available study count. Full outcome allocation: stage C012. Receive_study → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-study.result",
+          "description": "Read available study count. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-study"
+          ]
+        },
+        {
+          "id": "obligation.status.read-study.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-study"
+          ]
+        },
+        {
+          "id": "obligation.status.read-study.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read available study count.",
+          "sources": [
+            "source.reconciliation.status.read-study"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-blows",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-blows"
+        ],
+        "serverVersions": [
+          "< 4.9.1.0.0.1",
+          ">= 4.9.1.0.0.1"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read blows/wraith probability attribute and versioned label. Full outcome allocation: stage C012. Receive_bpr_wraith_prob → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-blows.result",
+          "description": "Read blows/wraith probability attribute and versioned label. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-blows"
+          ]
+        },
+        {
+          "id": "obligation.status.read-blows.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-blows"
+          ]
+        },
+        {
+          "id": "obligation.status.read-blows.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read blows/wraith probability attribute and versioned label.",
+          "sources": [
+            "source.reconciliation.status.read-blows"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-food",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-food"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read food amount and semantic hunger presentation. Full outcome allocation: stage C012. Receive_food → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-food.result",
+          "description": "Read food amount and semantic hunger presentation. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-food"
+          ]
+        },
+        {
+          "id": "obligation.status.read-food.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-food"
+          ]
+        },
+        {
+          "id": "obligation.status.read-food.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read food amount and semantic hunger presentation.",
+          "sources": [
+            "source.reconciliation.status.read-food"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-fear",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-fear"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read authoritative fear condition. Full outcome allocation: stage C012. Receive_fear → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-fear.result",
+          "description": "Read authoritative fear condition. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-fear"
+          ]
+        },
+        {
+          "id": "obligation.status.read-fear.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-fear"
+          ]
+        },
+        {
+          "id": "obligation.status.read-fear.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read authoritative fear condition.",
+          "sources": [
+            "source.reconciliation.status.read-fear"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-speed",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-speed"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read authoritative speed value. Full outcome allocation: stage C012. Receive_speed → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-speed.result",
+          "description": "Read authoritative speed value. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-speed"
+          ]
+        },
+        {
+          "id": "obligation.status.read-speed.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-speed"
+          ]
+        },
+        {
+          "id": "obligation.status.read-speed.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read authoritative speed value.",
+          "sources": [
+            "source.reconciliation.status.read-speed"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-cut",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-cut"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read cut severity and corresponding presentation. Full outcome allocation: stage C012. Receive_cut → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-cut.result",
+          "description": "Read cut severity and corresponding presentation. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-cut"
+          ]
+        },
+        {
+          "id": "obligation.status.read-cut.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-cut"
+          ]
+        },
+        {
+          "id": "obligation.status.read-cut.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read cut severity and corresponding presentation.",
+          "sources": [
+            "source.reconciliation.status.read-cut"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-blind-hallucination",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-blind-hallucination"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read blind/hallucination flags without collapsing their meanings. Full outcome allocation: stage C012. Receive_blind_hallu → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-blind-hallucination.result",
+          "description": "Read blind/hallucination flags without collapsing their meanings. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-blind-hallucination"
+          ]
+        },
+        {
+          "id": "obligation.status.read-blind-hallucination.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-blind-hallucination"
+          ]
+        },
+        {
+          "id": "obligation.status.read-blind-hallucination.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read blind/hallucination flags without collapsing their meanings.",
+          "sources": [
+            "source.reconciliation.status.read-blind-hallucination"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-stun",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-stun"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read stun severity and corresponding presentation. Full outcome allocation: stage C012. Receive_stun → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-stun.result",
+          "description": "Read stun severity and corresponding presentation. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-stun"
+          ]
+        },
+        {
+          "id": "obligation.status.read-stun.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-stun"
+          ]
+        },
+        {
+          "id": "obligation.status.read-stun.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read stun severity and corresponding presentation.",
+          "sources": [
+            "source.reconciliation.status.read-stun"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-monster-health",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-monster-health"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read tracked monster health and colour separately from player HP. Full outcome allocation: stage C012. Receive_monster_health → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-monster-health.result",
+          "description": "Read tracked monster health and colour separately from player HP. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-monster-health"
+          ]
+        },
+        {
+          "id": "obligation.status.read-monster-health.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-monster-health"
+          ]
+        },
+        {
+          "id": "obligation.status.read-monster-health.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read tracked monster health and colour separately from player HP.",
+          "sources": [
+            "source.reconciliation.status.read-monster-health"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-sanity",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-sanity"
+        ],
+        "serverVersions": [
+          ">= 4.8.1.3.0.0",
+          "> 4.6.1.2.0.0 and < 4.8.1.3",
+          "<= 4.6.1.2"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read sanity attribute/label/damage/current/max according to version; SHOW_SANITY must link with registered receiver. Full outcome allocation: stage C012. Receive_sanity → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-sanity.result",
+          "description": "Read sanity attribute/label/damage/current/max according to version; SHOW_SANITY must link with registered receiver. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-sanity"
+          ]
+        },
+        {
+          "id": "obligation.status.read-sanity.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-sanity"
+          ]
+        },
+        {
+          "id": "obligation.status.read-sanity.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read sanity attribute/label/damage/current/max according to version; SHOW_SANITY must link with registered receiver.",
+          "sources": [
+            "source.reconciliation.status.read-sanity"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-afk",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-afk"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read server AFK state, independent of local window focus. Full outcome allocation: stage C012. Receive_AFK → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-afk.result",
+          "description": "Read server AFK state, independent of local window focus. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-afk"
+          ]
+        },
+        {
+          "id": "obligation.status.read-afk.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-afk"
+          ]
+        },
+        {
+          "id": "obligation.status.read-afk.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read server AFK state, independent of local window focus.",
+          "sources": [
+            "source.reconciliation.status.read-afk"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-encumbrance",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-encumbrance"
+        ],
+        "serverVersions": [
+          ">= 4.8.1.0.0.0",
+          "> 4.4.2.0.0.0",
+          "older"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read all fifteen encumbrance conditions with version-dependent absent flags cleared. Full outcome allocation: stage C012. Receive_encumberment → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-encumbrance.result",
+          "description": "Read all fifteen encumbrance conditions with version-dependent absent flags cleared. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-encumbrance"
+          ]
+        },
+        {
+          "id": "obligation.status.read-encumbrance.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-encumbrance"
+          ]
+        },
+        {
+          "id": "obligation.status.read-encumbrance.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read all fifteen encumbrance conditions with version-dependent absent flags cleared.",
+          "sources": [
+            "source.reconciliation.status.read-encumbrance"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-stamina",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-stamina"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read current/max stamina. Full outcome allocation: stage C012. Receive_stamina → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-stamina.result",
+          "description": "Read current/max stamina. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-stamina"
+          ]
+        },
+        {
+          "id": "obligation.status.read-stamina.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-stamina"
+          ]
+        },
+        {
+          "id": "obligation.status.read-stamina.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read current/max stamina.",
+          "sources": [
+            "source.reconciliation.status.read-stamina"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-extra",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-extra"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read exact opaque extra-status bytes with bounded display projection. Full outcome allocation: stage C012. Receive_extra_status → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-extra.result",
+          "description": "Read exact opaque extra-status bytes with bounded display projection. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-extra"
+          ]
+        },
+        {
+          "id": "obligation.status.read-extra.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-extra"
+          ]
+        },
+        {
+          "id": "obligation.status.read-extra.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read exact opaque extra-status bytes with bounded display projection.",
+          "sources": [
+            "source.reconciliation.status.read-extra"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-martyr",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-martyr"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read martyr state and applicable status presentation. Full outcome allocation: stage C012. Receive_martyr → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-martyr.result",
+          "description": "Read martyr state and applicable status presentation. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-martyr"
+          ]
+        },
+        {
+          "id": "obligation.status.read-martyr.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-martyr"
+          ]
+        },
+        {
+          "id": "obligation.status.read-martyr.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read martyr state and applicable status presentation.",
+          "sources": [
+            "source.reconciliation.status.read-martyr"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-idle",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-idle"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read idle state and applicable status presentation. Full outcome allocation: stage C012. Receive_idle → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-idle.result",
+          "description": "Read idle state and applicable status presentation. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-idle"
+          ]
+        },
+        {
+          "id": "obligation.status.read-idle.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-idle"
+          ]
+        },
+        {
+          "id": "obligation.status.read-idle.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read idle state and applicable status presentation.",
+          "sources": [
+            "source.reconciliation.status.read-idle"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-indicators",
+      "acceptanceStage": "C012",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-indicators"
+        ],
+        "serverVersions": [
+          "always"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Read indicator bit meanings without losing unknown bits. Full outcome allocation: stage C012. Receive_indicators → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-indicators.result",
+          "description": "Read indicator bit meanings without losing unknown bits. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.status.read-indicators"
+          ]
+        },
+        {
+          "id": "obligation.status.read-indicators.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-indicators"
+          ]
+        },
+        {
+          "id": "obligation.status.read-indicators.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: Read indicator bit meanings without losing unknown bits.",
+          "sources": [
+            "source.reconciliation.status.read-indicators"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.status.read-live-hp",
+      "acceptanceStage": "C012",
+      "prerequisites": [
+        "capability.status.read-hp"
+      ],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.status.read-live-hp",
+          "source.baseline.hp"
+        ],
+        "serverVersions": [
+          "> 4.7.0.2.0.1",
+          "older"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "During a live session read authoritative current/max HP, boost and bar interpretation after each complete versioned packet, including absent-field defaults, interleaved gameplay, resize and reconnect. Stage A synthetic HP does not accept this live caller. Full outcome allocation: stage C012. Receive_hp → HUD/character state. B: конкретный Receive_* публикует серверное состояние HUD/character sheet живой сессии; получение stat/condition не требует переноса действия, которое его изменило."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.status.read-live-hp.result",
+          "description": "Live server HP through both wire layouts preserves max>10000 bar and cur>5000 boost conventions; fragmented and adjacent packets never publish partial fields. Visible current/max values, bars and boost meaning agree after interleaved gameplay.",
+          "sources": [
+            "source.reconciliation.status.read-live-hp"
+          ]
+        },
+        {
+          "id": "obligation.status.read-live-hp.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.status.read-live-hp"
+          ]
+        },
+        {
+          "id": "obligation.status.read-live-hp.allocation-checks",
+          "description": "Все wire layouts указанного Receive_* и absent-field defaults, split+sentinel, coherent live projection, reconnect/reset; normal/big/resize и applicable build gates. Точный проверяемый результат: During a live session read authoritative current/max HP, boost and bar interpretation after each complete versioned packet, including absent-field defaults, interleaved gameplay, resize and reconnect. Stage A synthetic HP does not accept this live caller.",
+          "sources": [
+            "source.baseline.hp"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 Spec review found that the Stage A synthetic HP primitive and warning occurrences did not allocate the complete live HP caller.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    }
+  ]
+}

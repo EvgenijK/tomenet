@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Прототип переходов single-window</title>
+<style>
+body{font:16px system-ui;margin:24px;background:#111820;color:#e5edf4;max-width:1100px}h1{font-size:24px}p{line-height:1.5}button{font:inherit;padding:9px 12px;margin:4px;background:#26394a;color:inherit;border:1px solid #506478;border-radius:5px;cursor:pointer}button:disabled{opacity:.4;cursor:default}button[aria-selected=true]{border-color:#73c7ed}section{margin:18px 0;padding:16px;border:1px solid #506478;border-radius:8px}.scene{display:grid;grid-template-columns:180px 1fr 200px;gap:12px;min-height:230px}.scene.compact{grid-template-columns:1fr}.panel,.map{padding:14px;background:#1c2935;border-radius:5px}.map{border:1px solid #73c7ed}.compact .extra{display:none}.surface{margin-top:16px;padding:12px;background:#304453}dl{display:grid;grid-template-columns:240px 1fr;gap:8px}dt{color:#99b6ca}dd{margin:0}#steps button.current{border-color:#73c7ed}@media(max-width:650px){.scene{grid-template-columns:1fr}dl{grid-template-columns:1fr}}
+</style>
+<h1>Одно окно: прототип переходов — throwaway</h1>
+<p>Проверяем взаимодействие, а не внешний вид: один основной раздел, временное скрытие при выборе цели, возврат к карте без дополнительного запоминания и адаптация без потери ввода. Все действия демонстрационные; команды серверу не отправляются. Отмена цели показана по проверенному пути get_dir → cmd_target: она завершает игровое действие целиком.</p>
+<section><strong>Постоянный критический HUD</strong> · HP 120/160 · эффекты · ONLINE: игра продолжается
+<div id="scene" class="scene"></div></section>
+<section><h2>Состояние взаимодействия</h2><dl id="state"></dl><p id="notice" aria-live="polite"></p></section>
+<section><h2>Свободная проверка</h2><div id="actions"></div><p>Чат: доступность, вход и возврат определяются штатным input context. Здесь они не моделируются; общего разрешения чата поверх разделов нет. Системные прерывания ещё не согласованы и не моделируются.</p></section>
+<section><h2>Пошаговые сценарии</h2><div id="tabs" role="tablist"></div><p id="description"></p><div id="steps"></div></section>
+<script>
+// Pure, in-memory transition model. Deliberately excludes unconfirmed system policy.
+function initial(){return {primary:null,selection:null,targeting:false,focus:'map',compact:false,notice:'Управление картой.'};}
+function transition(state,action){
+ const s={...state};
+ if(action==='reset')return initial();
+ if(action==='resize'){s.compact=!s.compact;s.notice='Размер изменён; незавершённое взаимодействие сохранено.';return s;}
+ if(action==='inventory'||action==='abilities'||action==='messages'){
+  if(s.targeting){s.notice='Нельзя заменить раздел внутри текущего выбора цели.';return s;}
+  s.primary=s.primary===action?null:action;s.selection=null;s.focus=s.primary?'primary':'map';s.notice='Один основной раздел; дополнительного запоминания между открытиями нет.';return s;
+ }
+ if(action==='select'&&['inventory','abilities'].includes(s.primary)&&!s.targeting){s.selection='Выбранная строка 3';s.notice='Выбор принадлежит текущему взаимодействию.';return s;}
+ if(action==='target'&&s.primary&&s.selection&&!s.targeting){s.targeting=true;s.focus='target';s.notice='Раздел временно скрыт; выбранное действие сохранено.';return s;}
+ if(action==='cancel'&&(s.primary||s.targeting)){s.primary=null;s.selection=null;s.targeting=false;s.focus='map';s.notice='Пример штатной отмены всей команды: состояние раздела сброшено.';return s;}
+ if(action==='finish'&&s.targeting){s.primary=null;s.selection=null;s.targeting=false;s.focus='map';s.notice='Демо: законченная команда, возврат к карте, состояние раздела сброшено. Штатное продолжение — отдельное исключение.';return s;}
+ s.notice='Для этого действия нет подходящего текущего шага.';return s;
+}
+const labels={inventory:'Inventory',abilities:'Abilities',messages:'Messages',select:'Выбрать строку 3',target:'Перейти к выбору цели',cancel:'Отмена всей команды',finish:'Завершить игровую команду',resize:'Имитировать изменение ширины окна',reset:'Сбросить демо'};
+const scenarios=[
+ {name:'Завершение',description:'Раздел скрывается при targeting. После законченной команды управление возвращается карте; повторное открытие не помнит строку.',steps:['abilities','select','target','finish','abilities']},
+ {name:'Полная отмена',description:'Штатный путь get_dir → cmd_target: Esc в выборе цели отменяет действие целиком, без возврата к списку. Повторное открытие начинает раздел заново.',steps:['inventory','select','target','cancel','inventory']},
+ {name:'Размер и замена',description:'Уменьшение окна не теряет выбор цели. Вне targeting Messages заменяет Inventory или Abilities как основной раздел.',steps:['abilities','select','target','resize','cancel','inventory','messages','resize']}
+];
+let state=initial(),tab=0,step=0;
+const $=id=>document.getElementById(id);
+function button(action,handler){const b=document.createElement('button');b.textContent=labels[action];b.onclick=handler;return b;}
+function dispatch(action){state=transition(state,action);render();}
+function render(){
+ $('scene').className='scene'+(state.compact?' compact':'');
+ $('scene').innerHTML='<div class="panel extra">Характеристики и эффекты</div><div class="map">Карта · '+(state.targeting?'ВЫБОР ЦЕЛИ':'обычный режим')+'<div id="surface"></div></div><div class="panel extra">Ленты сообщений</div>';
+ if(state.primary&&!state.targeting){$('surface').className='surface';$('surface').textContent={abilities:'Abilities',inventory:'Inventory',messages:'Messages'}[state.primary]+' · '+(state.selection||'начальное состояние')+' · игровой ввод блокирован';}
+ if(state.compact){const p=document.createElement('p');p.textContent='Места мало: информационные панели свёрнуты. Messages открывается основным разделом.';$('scene').append(p);}
+ const rows=[['Основной раздел',state.primary||'нет'],['Выбранная строка',state.selection||'нет'],['Раздел временно скрыт',state.targeting?'да':'нет'],['Владелец игрового ввода',{map:'карта',primary:'основной раздел',target:'выбор цели'}[state.focus]],['Ширина окна',state.compact?'места мало (имитация)':'места достаточно (имитация)']];
+ $('state').replaceChildren();for(const [key,value] of rows){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=key;dd.textContent=value;$('state').append(dt,dd);}
+ $('notice').textContent=state.notice;
+ $('tabs').replaceChildren();scenarios.forEach((scenario,index)=>{const b=document.createElement('button');b.textContent=scenario.name;b.setAttribute('role','tab');b.setAttribute('aria-selected',index===tab);b.onclick=()=>{tab=index;step=0;state=initial();render();};$('tabs').append(b);});
+ $('description').textContent=scenarios[tab].description;$('steps').replaceChildren();scenarios[tab].steps.forEach((action,index)=>{const b=button(action,()=>{state=transition(state,action);step++;render();});b.disabled=index!==step;b.className=index===step?'current':'';$('steps').append(b);});
+}
+Object.keys(labels).forEach(action=>$('actions').append(button(action,()=>dispatch(action))));render();
+</script>
+</html>

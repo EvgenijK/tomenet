@@ -1,0 +1,16 @@
+SV resource unavailable: /tmp/sv-b022-name-iv90eib6/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-name-iv90eib6/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=37293
+SV contact ready host=127.0.0.1 port=37293 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV resource unavailable: /tmp/sv-b022-name-iv90eib6/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-name-iv90eib6/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=34685
+SV contact ready host=127.0.0.1 port=34685 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV resource unavailable: /tmp/sv-b022-name-iv90eib6/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-name-iv90eib6/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=44873
+SV contact ready host=127.0.0.1 port=44873 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV resource unavailable: /tmp/sv-b022-name-iv90eib6/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-name-iv90eib6/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=37211
+SV contact ready host=127.0.0.1 port=37211 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV resource unavailable: /tmp/sv-b022-name-iv90eib6/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b022-name-iv90eib6/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=38285
+SV contact ready host=127.0.0.1 port=38285 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV-B-022 name handoff and SV-B-023 birth choice production checks passed

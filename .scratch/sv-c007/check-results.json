@@ -1,0 +1,13 @@
+{
+  "build": 0,
+  "graphics": 0,
+  "map-renderer": 0,
+  "map-effects": 0,
+  "font-editor": 0,
+  "existing-login": 0,
+  "native-events": 0,
+  "sanitizers": "ASan/UBSan on focused core/editor/login; native event smoke links O2 production objects",
+  "leaks": "LSan disabled under ptrace",
+  "renderer": "Linux software",
+  "canonicalRuntimeRegistration": "unchanged"
+}

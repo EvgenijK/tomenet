@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""SV ordinary/dedicated creation availability through the production endpoint seam."""
+from pathlib import Path
+import os
+import subprocess
+import tempfile
+
+ROOT = Path(__file__).resolve().parents[1]
+CC = os.environ.get("CC", "clang")
+FLAGS = subprocess.check_output(
+    ["pkg-config", "--cflags", "--libs", "sdl3", "sdl3-ttf", "sdl3-mixer", "freetype2", "libsecret-1", "libpng", "libcurl"],
+    text=True,
+).split()
+SOURCES = [
+    "src/client/sv/files/files.c", "src/client/sv/files/history.c", "src/client/sv/files/dna.c",
+    "tests/sv/ordinary-create-cancel.c",
+    "src/client/sv/login/native-run.c", "src/client/sv/settings/config.c", "src/client/sv/settings/startup.c", "src/client/sv/settings/audio.c", "src/client/sv/login/flow.c", "src/client/sv/login/chronicle.c",
+    "src/client/sv/result.c",
+    "src/client/sv/credential/vault.c",
+    "src/client/sv/login/account/credentials.c",
+    "src/client/sv/login/characters/login-interaction.c",
+    "src/client/sv/login/characters/native-login.c",
+    "src/client/sv/login/characters/native-name.c",
+    "src/client/sv/login/creation/native-birth.c",
+    "src/client/sv/protocol/contact.c",
+    "src/client/sv/protocol/contact-socket.c",
+    "src/client/sv/protocol/login.c", "src/client/sv/settings/options.c", "src/client/sv/settings/preferences.c",
+    "src/client/sv/protocol/login-identity.c",
+    "src/client/sv/login/pregame.c",
+    "src/client/sv/login/login-view.c",
+    "src/client/sv/login/creation/birth.c",
+    "src/client/sv/login/ui/endpoint-scene.c",
+    "src/client/sv/login/ui/login-shell.c",
+    "src/client/sv/ui/font.c",
+    "src/client/sv/login/servers/endpoint.c",
+    "src/client/sv/input/text-field.c",
+    "src/client/sv/login/ui/native-endpoint.c",
+    "src/client/sv/input/key-encoding.c",
+    "src/client/sv/login/servers/metaserver.c",
+    "src/common/md5.c",
+]
+
+with tempfile.TemporaryDirectory(prefix="sv-b022-ordinary-") as temp:
+    root = Path(temp)
+    binary = root / "ordinary-create-cancel"
+    profile = root / "profile"
+    profile.mkdir()
+    subprocess.run(
+        [CC, "-std=c99", "-D_DEFAULT_SOURCE", "-Wall", "-Wextra", "-Werror",
+         "-fsanitize=address,undefined", "-Isrc/client/sv", *SOURCES, *FLAGS,
+         "-o", str(binary)],
+        cwd=ROOT,
+        check=True,
+    )
+    config = profile / "sv" / "tomenet.cfg"
+    for mode in ("ordinary-available", "ordinary-first-run", "ordinary-full",
+                 "exclusive-available", "exclusive-unavailable",
+                 "exclusive-first-run", "capacity-neither-available",
+                 "capacity-neither-full", "capacity-iddc-available",
+                 "capacity-iddc-full", "capacity-pvp-available",
+                 "capacity-pvp-full", "capacity-both-available",
+                 "capacity-both-full", "dedicated-iddc-available",
+                 "dedicated-iddc-full", "dedicated-pvp-available",
+                 "dedicated-pvp-full"):
+        if mode.endswith("first-run"):
+            config.unlink(missing_ok=True)
+        else:
+            config.parent.mkdir(exist_ok=True)
+            config.write_text("svSchemaVersion\t1\n", encoding="ascii")
+        subprocess.run(
+            [str(binary), str(profile), str(ROOT / "lib"), mode],
+            cwd=ROOT,
+            env=dict(os.environ, SDL_VIDEODRIVER="dummy", SDL_RENDER_DRIVER="software",
+                     DBUS_SESSION_BUS_ADDRESS="unix:path=/tmp/sv-b022-no-service",
+                     ASAN_OPTIONS="detect_leaks=0"),
+            check=True,
+            timeout=15,
+        )
+print("SV creation availability production checks passed")

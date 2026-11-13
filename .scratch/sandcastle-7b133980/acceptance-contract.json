@@ -1,0 +1,692 @@
+{
+  "contract": {
+    "version": 1,
+    "completionScope": "implementation",
+    "criteria": [
+      {
+        "id": "P1-AC01",
+        "requirement": "SV-B-022 character management is a prerequisite for SV-B-023 birth-choice integration.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "Зависит от [SV-B-022](SV-B-022-character-manage.md)."
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P1-AC02",
+        "requirement": "The production birth flow supports legal server-provided sex, race, trait, class, body, stats, and mode choices and never sends a partial result while advancing, backtracking, cancelling, or terminating.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "Игрок проходит legal server-provided sex/race/trait/class/body/stats/mode choices,"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC03",
+        "requirement": "The sex choice accepts legal server-provided values and preserves highlighted selection, random/DNA choice semantics, and legal compatibility checks before advancing.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "| `capability.birth.sex` | Complete the sex choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-birth`, `source.policy.session` |"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC04",
+        "requirement": "The race choice accepts legal server-provided values and preserves highlighted selection, random/DNA choice semantics, and legal compatibility checks before advancing.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "| `capability.birth.race` | Complete the race choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-race`, `source.policy.session` |"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC05",
+        "requirement": "The trait choice accepts legal server-provided values and preserves highlighted selection, random/DNA choice semantics, and legal compatibility checks before advancing.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "| `capability.birth.trait` | Complete the trait choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-trait`, `source.policy.session` |"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC06",
+        "requirement": "The class choice accepts legal server-provided values and preserves highlighted selection, random/DNA choice semantics, and legal compatibility checks before advancing.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "| `capability.birth.class` | Complete the class choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-class`, `source.policy.session` |"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC07",
+        "requirement": "The body choice accepts legal server-provided values and preserves highlighted selection, random/DNA choice semantics, and legal compatibility checks before advancing.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "| `capability.birth.body` | Complete the body choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-body`, `source.policy.session` |"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC08",
+        "requirement": "The stats choice accepts legal server-provided values and preserves highlighted selection, random/DNA choice semantics, and legal compatibility checks before advancing.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "| `capability.birth.stats` | Complete the stats choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-stats`, `source.policy.session` |"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC09",
+        "requirement": "The mode choice accepts legal server-provided values and preserves highlighted selection, random/DNA choice semantics, and legal compatibility checks before advancing.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "| `capability.birth.mode` | Complete the mode choice with legal server-provided values; preserve highlighted selection, random/DNA choices and legal compatibility checks before advancing. | `source.baseline.session-mode`, `source.policy.session` |"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC10",
+        "requirement": "Every birth-choice step handles legal, illegal, and random choices from its server-provided list while preserving stable highlighted identity.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "1. Каждый legal/illegal/random choice и server-provided list, highlighted stable"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC11",
+        "requirement": "Every birth-choice step implements keyboard and mouse navigation, confirmation, and quitting through the production interaction path.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "identity, keyboard/mouse navigation, confirm и quit."
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC12",
+        "requirement": "Q and Ctrl-Q terminate creation through baseline quit/retry handling without sending either a completed character or a partial result.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "| `capability.birth.quit` | Q or Ctrl-Q terminates creation through baseline quit/retry handling without sending a completed character. | `source.baseline.session-birth`, `source.baseline.session-dna`, `source.policy.session` |"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC13",
+        "requirement": "Backspace from race returns to the preceding birth owner, preserving CLASS_BEFORE_RACE ordering, unavailable-step skipping, and post-mode PvP Maia trait-return semantics; it sends no completed play packet or partial result.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "| `capability.birth.backtrack-race` | Backspace from race returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-race`, `source.baseline.session-dna`, `source.policy.session` |"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC14",
+        "requirement": "Backspace from trait returns to the preceding birth owner, preserving CLASS_BEFORE_RACE ordering, unavailable-step skipping, and post-mode PvP Maia trait-return semantics; it sends no completed play packet or partial result.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "| `capability.birth.backtrack-trait` | Backspace from trait returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-trait`, `source.baseline.session-dna`, `source.policy.session` |"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC15",
+        "requirement": "Backspace from class returns to the preceding birth owner, preserving CLASS_BEFORE_RACE ordering, unavailable-step skipping, and post-mode PvP Maia trait-return semantics; it sends no completed play packet or partial result.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "| `capability.birth.backtrack-class` | Backspace from class returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-class`, `source.baseline.session-dna`, `source.policy.session` |"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC16",
+        "requirement": "Backspace from body returns to the preceding birth owner, preserving CLASS_BEFORE_RACE ordering, unavailable-step skipping, and post-mode PvP Maia trait-return semantics; it sends no completed play packet or partial result.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "| `capability.birth.backtrack-body` | Backspace from body returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-body`, `source.baseline.session-dna`, `source.policy.session` |"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC17",
+        "requirement": "Backspace from stats returns to the preceding birth owner, preserving CLASS_BEFORE_RACE ordering, unavailable-step skipping, and post-mode PvP Maia trait-return semantics; it sends no completed play packet or partial result.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "| `capability.birth.backtrack-stats` | Backspace from stats returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-stats`, `source.baseline.session-dna`, `source.policy.session` |"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC18",
+        "requirement": "Backspace from mode returns to the preceding birth owner, preserving CLASS_BEFORE_RACE ordering, unavailable-step skipping, and post-mode PvP Maia trait-return semantics; it sends no completed play packet or partial result.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "| `capability.birth.backtrack-mode` | Backspace from mode returns to its preceding birth owner; preserve CLASS_BEFORE_RACE ordering, skipped unavailable trait/body steps and post-mode PvP Maia trait return. No completed play packet is sent. | `source.baseline.session-mode`, `source.baseline.session-dna`, `source.policy.session` |"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC19",
+        "requirement": "Both compile-time class/race orders are implemented, and unavailable trait or body steps are skipped without assigning ownership to an unavailable step.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "2. Оба compile orders, skipped unavailable trait/body, dedicated IDDC/PvP и"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-build",
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC20",
+        "requirement": "Dedicated IDDC and PvP birth paths are implemented, including the post-mode PvP Maia return to the trait owner, and Backspace sends no completed packet or partial result.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "post-mode PvP Maia return; Backspace не отправляет completed packet."
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC21",
+        "requirement": "Interleaved network, focus, and resize events do not change the active birth owner or highlighted selection.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "3. Interleaved network/focus/resize не меняет owner или selection; disconnect и"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC22",
+        "requirement": "After disconnect or detection of a stale generation, the birth flow prohibits every further send.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "stale generation запрещают дальнейший send."
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core"
+        ]
+      },
+      {
+        "id": "P1-AC23",
+        "requirement": "Guide capability remains owned by Stage G and is outside SV-B-023 Guide coverage.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "Guide capability принадлежит G. Если canonical birth obligation вызывает Guide"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "Stage G Guide owner",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P1-AC24",
+        "requirement": "Every Guide entry reachable from the birth flow displays exactly `The guide is in development` as the temporary native placeholder.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "4. Каждый достижимый Guide entry показывает ровно `The guide is in development`"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core",
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P1-AC25",
+        "requirement": "Closing the temporary Guide placeholder returns to the same birth caller without changing selection or draft and performs no Guide state or network operation.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "и возвращает тот же birth caller без Guide state/network operation."
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core",
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P1-AC26",
+        "requirement": "DNA persistence is excluded from SV-B-023 and deferred to Stage C; SV-B-023 still preserves required random/DNA choice semantics.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "в C. Random/DNA choice semantics, встречающиеся в полном baseline outcome,"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "Stage C DNA-persistence owner",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P1-AC27",
+        "requirement": "Acceptance of SV-B-023 does not require `birth.restore-dna` or `birth.save-dna`.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "проверяются без принятия `birth.restore-dna` или `birth.save-dna`."
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P1-AC28",
+        "requirement": "All birth-choice branches use the production interaction state and input router; a fixed-response wizard is not an acceptable implementation.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "Все ветви идут через production interaction state и input router; fixed-response"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-build",
+          "sv-core",
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P1-AC29",
+        "requirement": "SV-B-023 does not take ownership of the final completed-character send, which remains assigned to SV-B-024.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "[SV-B-024](SV-B-024-birth-dna.md)."
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-024 owner",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P1-AC30",
+        "requirement": "At full acceptance, native production-path evidence must cover all four Production SV check groups through the production interaction state and input router: every required legal, illegal, random, and DNA choice over server-provided lists; stable highlighting, keyboard and mouse navigation, confirmation, quitting, and absence of partial-result sends; both compile orders, unavailable trait/body skips, dedicated IDDC/PvP paths, post-mode PvP Maia return, every required Backspace owner transition, and completed-packet suppression; network/focus/resize interleaving plus disconnect and stale-generation send suppression; and every reachable Guide entry with the exact placeholder, return to the same caller with unchanged selection and draft, and no Guide-state or network operation. Evidence must be produced and verified at the exact accepted contract digest and HEAD.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "## Production SV проверки\n\n1. Каждый legal/illegal/random choice и server-provided list, highlighted stable\n   identity, keyboard/mouse navigation, confirm и quit.\n2. Оба compile orders, skipped unavailable trait/body, dedicated IDDC/PvP и\n   post-mode PvP Maia return; Backspace не отправляет completed packet.\n3. Interleaved network/focus/resize не меняет owner или selection; disconnect и\n   stale generation запрещают дальнейший send.\n4. Каждый достижимый Guide entry показывает ровно `The guide is in development`\n   и возвращает тот же birth caller без Guide state/network operation.\n\n## Definition of Done\n\nВсе ветви идут через production interaction state и input router; fixed-response\nwizard не принимается."
+        },
+        "mandatory": true,
+        "applicability": "deferred",
+        "deferralReason": "The contract completion scope is implementation. This native runtime evidence is collected during full acceptance after the implementation is available; the deferral is caused by the acceptance phase boundary, not by the absence of a repository runner.",
+        "owner": "SV-B-023 implementation assignee produces the evidence; the Sandcastle controller full-acceptance verifier validates it",
+        "checkIds": [
+          "P1-birth-runtime-evidence"
+        ]
+      },
+      {
+        "id": "P1-AC31",
+        "requirement": "After removal of the service contact bit 0x02, normalized creation_flags == 0 selects traditional stat order and normalized creation_flags == 1 selects player-defined stats. As an explicit intentional SV divergence from the behavior baseline, every normalized creation_flags value greater than 1 immediately rejects both ordinary and dedicated/exclusive creation. Through the production endpoint seam in both compile orders, the implementation must verify the exact message `Unsupported character creation mode`, the complete character-selection state remains unchanged, name/birth interaction does not start, the birth draft is not mutated, and no name, birth, partial, or completed-character packet is sent.",
+        "source": {
+          "path": "docs/tasks/stage-b/SV-B-023-birth-choices.md",
+          "quote": "После удаления служебного contact-бита `0x02` поддерживаются только\n`creation_flags == 0` (traditional stat order) и `creation_flags == 1`\n(player-defined stats). Любое нормализованное значение `creation_flags > 1`\nявляется неподдерживаемым режимом создания персонажа. Попытка ordinary или\ndedicated/exclusive creation немедленно показывает точный текст\n`Unsupported character creation mode` и оставляет игрока на character selection.\nОна не открывает name/birth interaction, не мутирует birth draft и не отправляет\nname, birth, partial или completed-character packet.\n\nЭто явно принятое отличие SV от behavior baseline для неизвестных и будущих\nрежимов: SV fail-fast, а не предполагает семантику неизвестного server setup.\n\nПроверка выполняется на production endpoint seam для ordinary и\ndedicated/exclusive creation в обоих compile orders и подтверждает точный текст,\nнеизменный character-selection state и отсутствие draft mutation и packet send."
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "SV-B-023 implementation owner",
+        "checkIds": [
+          "sv-core",
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P2-AC01",
+        "requirement": "1. Minimize changes to the existing client and shared files, and place implementation and adaptation in SV wherever possible.",
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "существующего клиента и общих файлов. Реализацию и адаптацию по возможности"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P2-AC02",
+        "requirement": "2. Intentional duplication is acceptable when it preserves SV isolation and avoids importing a large dependency set.",
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "размещать в SV. Дублирование реализации допустимо, если оно позволяет сохранить"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P2-AC03",
+        "requirement": "3. Extract shared code only when the current task requires it, not solely to eliminate duplication.",
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "это нужно для текущей задачи, а не только ради устранения дублирования."
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P2-AC04",
+        "requirement": "4. Preserve the protocol and gameplay semantics of the behavior baseline during the port.",
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "При переносе сохранять протокольную и игровую семантику behavior baseline."
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P2-AC05",
+        "requirement": "5. Tests exercise the production SV path; no separate test-only implementation of behavior is used.",
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "Тесты должны вызывать production-путь SV; локальная SV-реализация допустима,\nотдельная реализация поведения только для тестов — нет."
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P2-AC06",
+        "requirement": "6. Any improvement opportunities discovered in legacy code, shared modules, or SV organization are recorded in docs/sv-improvements.md separately from the current feature implementation.",
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "записывать в [список улучшений](docs/sv-improvements.md), отдельно от реализации"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P2-AC07",
+        "requirement": "7. Each recorded improvement identifies the problem, affected code, proposal, status, and required checks.",
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "предложение, статус и необходимые проверки. Запись сама по себе не включает"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P2-AC08",
+        "requirement": "8. Recording an improvement does not add it to the current task, and intentional duplication used for isolation is not treated by itself as a defect or a mandatory future merge.",
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "улучшение в текущую задачу. Намеренное дублирование ради изоляции не является"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P2-AC09",
+        "requirement": "9. Apply this SV isolation policy in preference to older project-document wording that requires a shared SV and legacy implementation.",
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "Это правило имеет приоритет над прежними формулировками проектных документов,"
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P2-AC10",
+        "requirement": "10. When creating, triaging, or reviewing tasks, use local Markdown with Wayfinder items in .scratch/ and SV implementation tickets in docs/tasks/, following the referenced path and status rules.",
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "При создании, triage и review задач используйте локальный Markdown: Wayfinder в `.scratch/`, SV implementation tickets в `docs/tasks/`. Правила путей и статусов — в [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md)."
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P2-AC11",
+        "requirement": "11. During triage, use the five standard roles and a separate Labels field, following the referenced role mapping.",
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "При triage используйте пять стандартных ролей и отдельное поле `Labels:`. Соответствие ролей — в [docs/agents/triage-labels.md](docs/agents/triage-labels.md)."
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "controller-review"
+        ]
+      },
+      {
+        "id": "P2-AC12",
+        "requirement": "12. Before working with domain terminology or architecture, read the root CONTEXT.md and task-relevant ADRs, and follow the referenced single-context layout rules.",
+        "source": {
+          "path": "AGENTS.md",
+          "quote": "Перед работой с доменными терминами или архитектурой читайте корневой `CONTEXT.md` и относящиеся к задаче ADR. Правила single-context layout — в [docs/agents/domain.md](docs/agents/domain.md)."
+        },
+        "mandatory": true,
+        "applicability": "current",
+        "deferralReason": "",
+        "owner": "",
+        "checkIds": [
+          "controller-review"
+        ]
+      }
+    ],
+    "checks": [
+      {
+        "id": "sv-build",
+        "kind": "build",
+        "command": "make -s -C src -f makefile.sv tomenet-sv",
+        "description": "SV Make build"
+      },
+      {
+        "id": "sv-core",
+        "kind": "core",
+        "command": "bash -s -- core",
+        "description": "Sandcastle core checks"
+      },
+      {
+        "id": "controller-review",
+        "kind": "review",
+        "command": "",
+        "description": "Controller-owned review and fresh final-audit gate at the exact contract digest and HEAD"
+      },
+      {
+        "id": "P1-birth-runtime-evidence",
+        "kind": "external",
+        "command": "",
+        "description": "At full acceptance, the SV-B-023 implementation assignee conducts controller-observed native SV sessions built from the exact accepted contract digest and HEAD through the production interaction state and input router. The evidence bundle must provide a scenario-indexed pass/fail ledger, captured owner/selection/draft transitions, and outbound-send and Guide-operation traces for every case in P1-AC30, including both compile orders. The Sandcastle controller full-acceptance verifier audits every scenario and artifact at that same digest and HEAD; any missing or failing scenario, fixed-response wizard path, test-only behavior implementation, changed caller/selection/draft, or prohibited send or Guide operation fails the check."
+      }
+    ]
+  },
+  "digest": "15de367676b8c4c23c1ba787bb60b4e976455f27926f4b7688e17fc75204dbe6",
+  "verification": {
+    "approved": true,
+    "summary": "The proposal preserves every prior criterion and check, adds one mandatory/current criterion that fully represents the authorized unsupported-mode decision and all required quotes, keeps the intentional baseline divergence and production-path verification explicit, introduces no unrelated obligation, retains accurate scope boundaries and deferred owners, and does not claim pending native evidence as passed.",
+    "missingRequirements": [],
+    "findings": []
+  }
+}

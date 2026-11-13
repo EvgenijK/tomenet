@@ -1,0 +1,102 @@
+{
+  "cases": [
+    {
+      "case": "c011-startup-quit",
+      "binarySha256": "efe3166a29eb34f4b6dac8945fbe3715110301b4e8c21a8b5800ecbac715a75b",
+      "sources": 152,
+      "sourceSnapshotMatches": true,
+      "libraryUnchanged": true,
+      "exitCode": 0
+    },
+    {
+      "case": "c011-cancel",
+      "binarySha256": "efe3166a29eb34f4b6dac8945fbe3715110301b4e8c21a8b5800ecbac715a75b",
+      "sources": 152,
+      "sourceSnapshotMatches": true,
+      "libraryUnchanged": true,
+      "exitCode": 0
+    },
+    {
+      "case": "c011-preparation",
+      "binarySha256": "efe3166a29eb34f4b6dac8945fbe3715110301b4e8c21a8b5800ecbac715a75b",
+      "sources": 152,
+      "sourceSnapshotMatches": true,
+      "libraryUnchanged": true,
+      "exitCode": 0
+    },
+    {
+      "case": "c011-retry",
+      "binarySha256": "efe3166a29eb34f4b6dac8945fbe3715110301b4e8c21a8b5800ecbac715a75b",
+      "sources": 152,
+      "sourceSnapshotMatches": true,
+      "libraryUnchanged": true,
+      "exitCode": 0
+    },
+    {
+      "case": "c011-initial-repair",
+      "binarySha256": "efe3166a29eb34f4b6dac8945fbe3715110301b4e8c21a8b5800ecbac715a75b",
+      "sources": 152,
+      "sourceSnapshotMatches": true,
+      "libraryUnchanged": true,
+      "exitCode": 0
+    },
+    {
+      "case": "c011-transfer-failure",
+      "binarySha256": "efe3166a29eb34f4b6dac8945fbe3715110301b4e8c21a8b5800ecbac715a75b",
+      "sources": 152,
+      "sourceSnapshotMatches": true,
+      "libraryUnchanged": true,
+      "exitCode": 0
+    },
+    {
+      "case": "c011-audio-enabled",
+      "binarySha256": "efe3166a29eb34f4b6dac8945fbe3715110301b4e8c21a8b5800ecbac715a75b",
+      "sources": 152,
+      "sourceSnapshotMatches": true,
+      "libraryUnchanged": true,
+      "exitCode": 0
+    },
+    {
+      "case": "c011-audio-no-device",
+      "binarySha256": "efe3166a29eb34f4b6dac8945fbe3715110301b4e8c21a8b5800ecbac715a75b",
+      "sources": 152,
+      "sourceSnapshotMatches": true,
+      "libraryUnchanged": true,
+      "exitCode": 0
+    },
+    {
+      "case": "c011-audio-missing-pack",
+      "binarySha256": "efe3166a29eb34f4b6dac8945fbe3715110301b4e8c21a8b5800ecbac715a75b",
+      "sources": 152,
+      "sourceSnapshotMatches": true,
+      "libraryUnchanged": true,
+      "exitCode": 0
+    },
+    {
+      "case": "c011-controls",
+      "binarySha256": "efe3166a29eb34f4b6dac8945fbe3715110301b4e8c21a8b5800ecbac715a75b",
+      "sources": 152,
+      "sourceSnapshotMatches": true,
+      "libraryUnchanged": true,
+      "exitCode": 0
+    },
+    {
+      "case": "c011-birth",
+      "binarySha256": "efe3166a29eb34f4b6dac8945fbe3715110301b4e8c21a8b5800ecbac715a75b",
+      "sources": 152,
+      "sourceSnapshotMatches": true,
+      "libraryUnchanged": true,
+      "exitCode": 0
+    }
+  ],
+  "canonicalUnchanged": true,
+  "actualServer": {
+    "metadata": ".scratch/sv-c011-followup/real-server-12/command.json",
+    "clientExitCode": 0,
+    "clientBinarySha256": "e1c6fc594bb8e4dd814bdc1fc0e43536079261d92a5eaffa6357354585170862",
+    "serverBinarySha256": "7f3d1257cbee8acbf7f432eac01044afd301ab0554b645da288ff3cf88e080ba",
+    "productionSourceCount": 149,
+    "productionSourcesMatch": true,
+    "isolatedNetwork": true
+  }
+}

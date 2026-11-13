@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-28",
+  "platform": "Linux",
+  "scale": 1.25,
+  "output": [
+    1280,
+    960
+  ],
+  "logical": [
+    1024,
+    768
+  ],
+  "checks": [
+    {
+      "state": "manual-connect",
+      "result": "UNCONFIRMED",
+      "evidence": "opengl-scaled-manual-connect.png",
+      "outcome": "Retained PNG was overwritten by a failed replay selecting a server; does not confirm Direct/Connect. Production core adapter assertions cover manual Connect/Cancel."
+    },
+    {
+      "state": "error",
+      "result": "PASS",
+      "evidence": "opengl-scaled-error.png",
+      "outcome": "actual keyboard credentials submit reaches refused contact; failure log checked"
+    },
+    {
+      "state": "retry",
+      "result": "PASS",
+      "evidence": "opengl-scaled-retry.png",
+      "outcome": "actual Retry click returns retained account with cleared password after logged refused contact"
+    },
+    {
+      "state": "optional-cancel",
+      "result": "UNCONFIRMED",
+      "evidence": "scaled-cancel-replay.log",
+      "outcome": "exit not confirmed; separate production core mouse Cancel assertion passed"
+    },
+    {
+      "state": "optional-cancel-software-1x",
+      "result": "UNCONFIRMED",
+      "evidence": "software-cancel-replay.log",
+      "outcome": "bounded replay stalled before refused contact"
+    }
+  ]
+}

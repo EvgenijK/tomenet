@@ -1,0 +1,27 @@
+SV resource unavailable: /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=40487
+SV contact ready host=127.0.0.1 port=40487 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=34997
+SV contact ready host=127.0.0.1 port=34997 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=38907
+SV contact ready host=127.0.0.1 port=38907 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=37567
+SV contact ready host=127.0.0.1 port=37567 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=33279
+SV contact ready host=127.0.0.1 port=33279 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=43153
+SV contact ready host=127.0.0.1 port=43153 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=38595
+SV contact ready host=127.0.0.1 port=38595 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV resource unavailable: /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-b021-w6ggkr6c/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV contact failed: Server closed the connection. R retries; Escape exits. (status=0)
+SV endpoint selected host=127.0.0.1 port=43475
+SV contact ready host=127.0.0.1 port=43475 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV contact ready host=127.0.0.1 port=43475 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=0
+SV-B-021 new-account production flow passed

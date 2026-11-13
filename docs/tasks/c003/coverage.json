@@ -1,0 +1,737 @@
+{
+  "schemaVersion": 1,
+  "stage": "C003",
+  "status": "accepted",
+  "snapshotKind": "local-planning-only",
+  "snapshotDate": "2026-11-07",
+  "canonicalSha256": {
+    "stages.json": "e17967e945c425053f8cbe9f4730d5d919fe6fc9598dbf8d694673741b7dcf21",
+    "manifest.json": "68efed03ecade79974e62b9f69a084a47cfa9262952b30b6436a2f2ac5b0b222",
+    "native-coverage.json": "2d7d5ae3e5f5739c93ba512e756f86ba1960dcb9109e5a46b77717e76f103cab",
+    "reconciliation.json": "f44cd0e34c60a291574df42a619ae8f7ea7a5ae58afad3895818700be85743f0"
+  },
+  "reviewedCapabilityCount": 10,
+  "ownedCapabilityIds": [
+    "capability.files.history-load",
+    "capability.files.history-save",
+    "capability.files.resource-overlay",
+    "capability.files.dna-shared",
+    "capability.files.notes-append",
+    "capability.files.clone-console",
+    "capability.files.clone-file",
+    "capability.files.export-collision",
+    "capability.files.transient-owner",
+    "capability.files.report-resource-identity"
+  ],
+  "ticketOwnership": {
+    "capability.files.resource-overlay": "SV-C003-001",
+    "capability.files.export-collision": "SV-C003-001",
+    "capability.files.transient-owner": "SV-C003-001",
+    "capability.files.history-load": "SV-C003-002",
+    "capability.files.history-save": "SV-C003-002",
+    "capability.files.dna-shared": "SV-C003-003",
+    "capability.files.notes-append": "SV-C003-004",
+    "capability.files.clone-console": "SV-C003-004",
+    "capability.files.clone-file": "SV-C003-004",
+    "capability.files.report-resource-identity": "SV-C003-005"
+  },
+  "coverage": [
+    {
+      "capabilityId": "capability.files.history-load",
+      "acceptanceStage": "C003",
+      "prerequisites": [
+        "capability.settings.load"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-chathist-305041",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s780",
+          "source.allocation-b.s781",
+          "source.allocation-b.s638",
+          "source.allocation-b.s783"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Load private S/chathist-account.tmp with baseline bounds/order/dedup/relog semantics; never automatically read shared legacy input history. Full outcome allocation: stage C003. Startup c-init загружает bounded chat input history; приватный S owner обязателен уже при B chat."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.files.history-load.result",
+          "description": "Load private S/chathist-account.tmp with baseline bounds/order/dedup/relog semantics; never automatically read shared legacy input history.",
+          "sources": [
+            "source.behavior.settings-chathist-305041",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.files.history-load.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-chathist-305041",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.files.history-load.allocation-checks",
+          "description": "S/chathist-account.tmp load: ring wrap, duplicates, empty/missing/corrupt file, смена account; legacy history не читается.",
+          "sources": [
+            "source.behavior.settings-chathist-305041",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s780",
+            "source.allocation-b.s781",
+            "source.allocation-b.s638",
+            "source.allocation-b.s783"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.files.history-save",
+      "acceptanceStage": "C003",
+      "prerequisites": [
+        "capability.files.history-load"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-chathist-305041",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s780",
+          "source.allocation-b.s781",
+          "source.allocation-b.s638",
+          "source.allocation-b.s783"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Save input history at baseline exit lifecycle to same private path, excluding credentials/archive passwords; no dependency on settings Save. Full outcome allocation: stage C003. do_save_chatinput вызывается baseline exit/relog; B exit не может потерять или раскрыть историю."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.files.history-save.result",
+          "description": "Save input history at baseline exit lifecycle to same private path, excluding credentials/archive passwords; no dependency on settings Save.",
+          "sources": [
+            "source.behavior.settings-chathist-305041",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.files.history-save.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-chathist-305041",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.files.history-save.allocation-checks",
+          "description": "Exit/relog сохраняет только public chat draft history; проверить credential/archive exclusion, write failure и exact S owner.",
+          "sources": [
+            "source.behavior.settings-chathist-305041",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s780",
+            "source.allocation-b.s781",
+            "source.allocation-b.s638",
+            "source.allocation-b.s783"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.files.resource-overlay",
+      "acceptanceStage": "C003",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-my-fopen-3df064",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s780",
+          "source.allocation-b.s781",
+          "source.allocation-b.s638",
+          "source.allocation-b.s783"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Resolve U overlay before bundled B for shared resources; writes retain shared owner and cover raw stat/rename/remove/temp operations, not fopen alone. Full outcome allocation: stage C003. Startup fonts/graphics/Lua/Guide/audio разрешают user overlay перед bundled fallback; ownership применяется ко всем file operations. In A–F, invoking this outcome's Guide entry displays exactly \"The guide is in development\", performs no Guide content, bookmark, network or update operation, preserves the current interaction state, and returns to the actual caller. This temporary native placeholder is not Guide capability coverage."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.files.resource-overlay.result",
+          "description": "Resolve U overlay before bundled B for shared resources; writes retain shared owner and cover raw stat/rename/remove/temp operations, not fopen alone.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.files.resource-overlay.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.files.resource-overlay.allocation-checks",
+          "description": "Одинаковый resolved owner для read/stat/temp/rename/remove; overlay missing/invalid, fallback, shared file остаётся shared.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s780",
+            "source.allocation-b.s781",
+            "source.allocation-b.s638",
+            "source.allocation-b.s783"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.files.dna-shared",
+      "acceptanceStage": "C003",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-my-fopen-3df064",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.behavior.settings-save-birth-file-3df064",
+          "source.allocation-b.s780",
+          "source.allocation-b.s781",
+          "source.allocation-b.s638",
+          "source.allocation-b.s783"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. DNA stays shared U/user: normalized name/reincarnation lookup, automatic birth save and conversion preserve legacy behavior. Full outcome allocation: stage C003. Birth restore/save DNA происходит внутри B creation, включая reincarnation lookup и conversion."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.files.dna-shared.result",
+          "description": "DNA stays shared U/user: normalized name/reincarnation lookup, automatic birth save and conversion preserve legacy behavior.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-save-birth-file-3df064"
+          ]
+        },
+        {
+          "id": "obligation.files.dna-shared.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-save-birth-file-3df064"
+          ]
+        },
+        {
+          "id": "obligation.files.dna-shared.allocation-checks",
+          "description": "Normalized birth filename, missing/old DNA conversion, completed birth autosave и cancel; legacy caller видит тот же shared owner.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-save-birth-file-3df064",
+            "source.allocation-b.s780",
+            "source.allocation-b.s781",
+            "source.allocation-b.s638",
+            "source.allocation-b.s783"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.files.notes-append",
+      "acceptanceStage": "C003",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-my-fopen-3df064",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.behavior.settings-receive-message-9b42f3",
+          "source.allocation-b.s780",
+          "source.allocation-b.s781",
+          "source.allocation-b.s638",
+          "source.allocation-b.s783"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Automatically append received private notes to shared U/user/notes-account.txt; preserve original text/order and report disk failure. Full outcome allocation: stage C003. Receive_message напрямую append private notes и continuation lines; это обычный B receive path, не поздний notes browser."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.files.notes-append.result",
+          "description": "Automatically append received private notes to shared U/user/notes-account.txt; preserve original text/order and report disk failure.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-receive-message-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.files.notes-append.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-receive-message-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.files.notes-append.allocation-checks",
+          "description": "Два одинаковых notes/continuation packets записаны по порядку один раз; non-note сбрасывает chain; disk denied и secret exclusion.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-receive-message-9b42f3",
+            "source.allocation-b.s780",
+            "source.allocation-b.s781",
+            "source.allocation-b.s638",
+            "source.allocation-b.s783"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.files.clone-console",
+      "acceptanceStage": "C003",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-my-fopen-3df064",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.behavior.settings-clone-to-stdout-b0b823",
+          "source.allocation-b.s780",
+          "source.allocation-b.s781",
+          "source.allocation-b.s638",
+          "source.allocation-b.s783"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. clone_to_stdout initially off; when enabled emit baseline colour-stripped message order to console independently of recall retention. Full outcome allocation: stage C003. c_msg_print напрямую выводит colour-stripped сообщения при clone_to_stdout, который является B message preference."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.files.clone-console.result",
+          "description": "clone_to_stdout initially off; when enabled emit baseline colour-stripped message order to console independently of recall retention.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-clone-to-stdout-b0b823"
+          ]
+        },
+        {
+          "id": "obligation.files.clone-console.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-clone-to-stdout-b0b823"
+          ]
+        },
+        {
+          "id": "obligation.files.clone-console.allocation-checks",
+          "description": "С опцией off нет output; on duplicate occurrences не склеиваются, FF stripped, flush; UI recreate ничего не печатает снова.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-clone-to-stdout-b0b823",
+            "source.allocation-b.s780",
+            "source.allocation-b.s781",
+            "source.allocation-b.s638",
+            "source.allocation-b.s783"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.files.clone-file",
+      "acceptanceStage": "C003",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-my-fopen-3df064",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.behavior.settings-clone-to-file-b0b823",
+          "source.allocation-b.s780",
+          "source.allocation-b.s781",
+          "source.allocation-b.s638",
+          "source.allocation-b.s783"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. clone_to_file initially off; append/flush stripped messages to shared U/user/stdout.txt without new recorder or secret buffers. Full outcome allocation: stage C003. c_msg_print напрямую append stripped messages при clone_to_file; baseline sink участвует в B message delivery."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.files.clone-file.result",
+          "description": "clone_to_file initially off; append/flush stripped messages to shared U/user/stdout.txt without new recorder or secret buffers.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-clone-to-file-b0b823"
+          ]
+        },
+        {
+          "id": "obligation.files.clone-file.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-clone-to-file-b0b823"
+          ]
+        },
+        {
+          "id": "obligation.files.clone-file.allocation-checks",
+          "description": "Append/flush shared U/user/stdout.txt, off by default, duplicate ordering; open/write failure и отсутствие credential payload.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-clone-to-file-b0b823",
+            "source.allocation-b.s780",
+            "source.allocation-b.s781",
+            "source.allocation-b.s638",
+            "source.allocation-b.s783"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.files.export-collision",
+      "acceptanceStage": "C003",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-my-fopen-3df064",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s780",
+          "source.allocation-b.s781",
+          "source.allocation-b.s638",
+          "source.allocation-b.s783"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Generated export filenames choose free suffix; explicit existing destination requires replace/cancel, never silent overwrite. Full outcome allocation: stage C003. Tomb dump, B message export и screenshot требуют no-silent-overwrite policy до file publication."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.files.export-collision.result",
+          "description": "Generated export filenames choose free suffix; explicit existing destination requires replace/cancel, never silent overwrite.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.files.export-collision.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.files.export-collision.allocation-checks",
+          "description": "Generated name находит free suffix; explicit existing file replace/cancel; failed write сохраняет previous destination.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s780",
+            "source.allocation-b.s781",
+            "source.allocation-b.s638",
+            "source.allocation-b.s783"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.files.transient-owner",
+      "acceptanceStage": "C003",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-my-fopen-3df064",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s780",
+          "source.allocation-b.s781",
+          "source.allocation-b.s638",
+          "source.allocation-b.s783"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Backups, temporary/helper/IPC/diagnostic files belong to operation and are not imported as profile data; keep secrets out of all diagnostics. Full outcome allocation: stage C003. Startup transfer/settings/credentials операции уже создают owned temporary/backup/helper data; изоляция не может ждать E."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.files.transient-owner.result",
+          "description": "Backups, temporary/helper/IPC/diagnostic files belong to operation and are not imported as profile data; keep secrets out of all diagnostics.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.files.transient-owner.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.files.transient-owner.allocation-checks",
+          "description": "Каждый temp/backup принадлежит resolved operation owner; relog/cancel cleanup; secret bytes не попадают в config temp или diagnostic artifact.",
+          "sources": [
+            "source.behavior.settings-my-fopen-3df064",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s780",
+            "source.allocation-b.s781",
+            "source.allocation-b.s638",
+            "source.allocation-b.s783"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.files.report-resource-identity",
+      "acceptanceStage": "C003",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-send-version-9b42f3",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.protocol.settings-send-version-9b42f3",
+          "source.protocol.settings-send-audio-9b42f3",
+          "source.protocol.settings-send-font-9b42f3",
+          "source.protocol.settings-receive-version-1e8778",
+          "source.protocol.settings-receive-audio-1e8778",
+          "source.protocol.settings-receive-font-1e8778",
+          "source.allocation-b.s780",
+          "source.allocation-b.s781",
+          "source.allocation-b.s638",
+          "source.allocation-b.s783"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Report client version/OS/Guide length, audio pack metadata and requested/effective font/graphics identity through original versioned Send_version/Send_audio/Send_font fields. Preserve full local names; only reporting copies follow approved byte limits, never truncate stored selections. Missing features report baseline values. Full outcome allocation: stage C003. Send_version/Send_audio/Send_font участвуют реальном login/map resource exchange. In A–F, invoking this outcome's Guide entry displays exactly \"The guide is in development\", performs no Guide content, bookmark, network or update operation, preserves the current interaction state, and returns to the actual caller. This temporary native placeholder is not Guide capability coverage."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.files.report-resource-identity.result",
+          "description": "Report client version/OS/Guide length, audio pack metadata and requested/effective font/graphics identity through original versioned Send_version/Send_audio/Send_font fields. Preserve full local names; only reporting copies follow approved byte limits, never truncate stored selections. Missing features report baseline values. In A–F, invoking this outcome's Guide entry displays exactly \"The guide is in development\", performs no Guide content, bookmark, network or update operation, preserves the current interaction state, and returns to the actual caller. This temporary native placeholder is not Guide capability coverage.",
+          "sources": [
+            "source.behavior.settings-send-version-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-send-version-9b42f3",
+            "source.protocol.settings-send-audio-9b42f3",
+            "source.protocol.settings-send-font-9b42f3",
+            "source.protocol.settings-receive-version-1e8778",
+            "source.protocol.settings-receive-audio-1e8778",
+            "source.protocol.settings-receive-font-1e8778"
+          ]
+        },
+        {
+          "id": "obligation.files.report-resource-identity.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-send-version-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-send-version-9b42f3",
+            "source.protocol.settings-send-audio-9b42f3",
+            "source.protocol.settings-send-font-9b42f3",
+            "source.protocol.settings-receive-version-1e8778",
+            "source.protocol.settings-receive-audio-1e8778",
+            "source.protocol.settings-receive-font-1e8778"
+          ]
+        },
+        {
+          "id": "obligation.files.report-resource-identity.wire",
+          "description": "Capture every serializer version and actual server string boundary; test reporting-limit minus1/limit/plus1, full local reference retention, missing packs and reinitialization. No incompatible new server protocol.",
+          "sources": [
+            "source.protocol.settings-send-version-9b42f3",
+            "source.protocol.settings-send-audio-9b42f3",
+            "source.protocol.settings-send-font-9b42f3",
+            "source.protocol.settings-receive-version-1e8778",
+            "source.protocol.settings-receive-audio-1e8778",
+            "source.protocol.settings-receive-font-1e8778",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.files.report-resource-identity.allocation-checks",
+          "description": "Каждая source-defined versioned layout и byte limit в reporting copy; full local name не меняется; отсутствующий pack/font сообщает baseline missing values.",
+          "sources": [
+            "source.behavior.settings-send-version-9b42f3",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-send-version-9b42f3",
+            "source.protocol.settings-send-audio-9b42f3",
+            "source.protocol.settings-send-font-9b42f3",
+            "source.protocol.settings-receive-version-1e8778",
+            "source.protocol.settings-receive-audio-1e8778",
+            "source.protocol.settings-receive-font-1e8778",
+            "source.allocation-b.s780",
+            "source.allocation-b.s781",
+            "source.allocation-b.s638",
+            "source.allocation-b.s783"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    }
+  ],
+  "planningDecision": {
+    "date": "2026-11-09",
+    "approvedBy": "user",
+    "scope": "C003 and tickets 001-006 accepted by user now; late integrations/tests and discovered issues belong to owning later stages and do not automatically reopen C003",
+    "canonicalAllocationChanged": false,
+    "stageIntegrationDocuments": {
+      "C006": "../c006/README.md",
+      "C007": "../c007/README.md",
+      "C014": "../c014/README.md",
+      "C016": "../c016/README.md",
+      "C028": "../c028/README.md",
+      "C029": "../c029/README.md",
+      "C032": "../c032/README.md",
+      "C061": "../c061/README.md"
+    },
+    "historicalIntegrationIndex": "../verification/c003-deferred-integration.md"
+  },
+  "acceptance": {
+    "status": "accepted",
+    "date": "2026-11-09",
+    "authority": "explicit user decision",
+    "tickets": [
+      "SV-C003-001",
+      "SV-C003-002",
+      "SV-C003-003",
+      "SV-C003-004",
+      "SV-C003-005",
+      "SV-C003-006"
+    ],
+    "lateFlowEvidenceAcceptanceGate": false,
+    "canonicalRuntimeRegistration": "separate workflow; canonical status unchanged"
+  }
+}

@@ -1,0 +1,12 @@
+SV initial audio: Audio disabled by requested settings (rate=0 speakers=0 tracks=0 buffer=0)
+SV text font unavailable: /home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c002/runtime/configured/xtra/font/16x24x.pcf; trying declared fallback
+SV invocation retains deferred weather/transfer/export/quit/cache requests; their late consumers are not active
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0

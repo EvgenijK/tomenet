@@ -1,0 +1,7 @@
+make: Entering directory '/home/svechnik/Projects/tomenet_modern_client/src'
+make -f makefile.sv PLATFORM=linux shell
+make[1]: Entering directory '/home/svechnik/Projects/tomenet_modern_client/src'
+cp .sv-build/linux/804ac5c2508542c070c8/tomenet-sv tomenet-sv
+SV shell: .sv-build/linux/804ac5c2508542c070c8/build.txt
+make[1]: Leaving directory '/home/svechnik/Projects/tomenet_modern_client/src'
+make: Leaving directory '/home/svechnik/Projects/tomenet_modern_client/src'

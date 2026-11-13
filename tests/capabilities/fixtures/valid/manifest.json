@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "id": "source.baseline.hp",
+      "role": "behavior",
+      "repository": "tomenet",
+      "revision": "05d040a33b2050a0b08ec17649aa94f1e99120d7",
+      "path": "src/client/nclient.c",
+      "anchor": "Receive_hp",
+      "sha256": "cad90ba0b4505b41f31da5284d80448738e54cde6b6ee394aebb258ca8884853"
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "capability.status.read-hp",
+      "title": "Read current and maximum hit points",
+      "description": "Observe coherent current/maximum HP and boost/bar interpretation after a complete server update. This outcome excludes warning audio, full HUD and live-session acceptance.",
+      "lifecycle": "active",
+      "sources": [
+        "source.baseline.hp"
+      ]
+    }
+  ],
+  "surfaces": [],
+  "actions": [],
+  "states": [],
+  "bindings": [],
+  "inputContexts": [],
+  "relations": []
+}

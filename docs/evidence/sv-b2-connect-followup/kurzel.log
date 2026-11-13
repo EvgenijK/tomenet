@@ -1,0 +1,4 @@
+receive bytes=34 result=0 phase=1 failurephase=0
+receive bytes=3767 result=0 phase=3 failurephase=0
+host=kurzel.dev state=3 version=4.9.3.0.0.3 rejection=0 elapsed=1271
+READY races=18 classes=16 traits=32 motd=2760

@@ -1,0 +1,3 @@
+COMMAND: clang -std=c99 -Wall -Wextra -Werror -Isrc/client/sv tests/sv/settings-startup.c src/client/sv/settings/startup.c src/client/sv/settings/config.c -o /tmp/sv-c002-startup
+SV settings startup core: PASS
+SV settings: incompatible future CFG schema; using defaults, overwrite prohibited

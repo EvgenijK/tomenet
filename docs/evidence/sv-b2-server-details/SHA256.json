@@ -1,0 +1,15 @@
+{
+  "binary.sha256": "dcb62d377ff2646131abaf48e3f76cf7130ec681cc2bfe761ee2e2d7b9d09ce6",
+  "build.log": "23d0808333929055e69ee98580916cf3e89e95d92cc715aa3909fd5e5cef53fa",
+  "endpoint.log": "784d3ed56cee5da4d68b3c7fa670dea3c7da042066664f16effd3acf95334a2c",
+  "live-opengl-small.log": "b572858834cbc2104db5bc637a471f94ea6ffdc01e118c2e0f7898daef653d92",
+  "live-opengl-small.png": "af0a54eea0f79445984169257199f9a211cfa476752e83725044d17b858e089d",
+  "live-software.log": "fb696a59ff986517432ffe6f327f5585175cbaf529a387985e317bbf0ba78b03",
+  "live-software.png": "453f2bcb25d9d04bdeb92263efdacd9dc54bcefb73eefee87b5aba8a7569799e",
+  "meta-live.log": "146c96820bcc2f4735616e2744593d6db17a0c180ac475048dc9132b7e14dce5",
+  "meta-red.log": "59ddbd5800b946608dfd2d6e5cad935645df5a5efa0d60ccbb18010487b13f88",
+  "metaserver.xml": "27bb63be6d0e8451baa885d18351bb4920c3654e09043db598809234713335eb",
+  "review.md": "5eca0dff26f818f2fd51dec67b2f8319c19f4c276aa1e87ff38e964dd804565d",
+  "selected-after.png": "a88e2018b06a331c60edaf9324e77fb2201f351e2062e47b458f1d68f614176c",
+  "selected-before.png": "fdff49083536a981987f50b0ca28dc4835748c5f1640e3ffe357903ad47f32ff"
+}

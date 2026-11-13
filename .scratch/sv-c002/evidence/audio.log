@@ -1,0 +1,5 @@
+COMMAND: clang -std=c99 -Wall -Wextra -Werror -Isrc/client/sv tests/sv/settings-audio.c src/client/sv/settings/audio.c src/client/sv/settings/config.c src/client/sv/settings/options.c src/client/sv/protocol/login.c -lSDL3_mixer -lSDL3 -o /tmp/sv-c002-audio
+audio open requested=4000/4/128 effective=44100/4/128 stereo=2 cache=0
+audio open requested=44100/32/1024 effective=44100/32/1024 stereo=2 cache=1
+audio open requested=48000/32/8192 effective=48000/32/8192 stereo=2 cache=0
+settings audio: OK

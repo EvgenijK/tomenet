@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "stage": "C005",
+  "status": "planned",
+  "snapshotKind": "local-planning-only",
+  "snapshotDate": "2026-11-09",
+  "canonicalSha256": {
+    "stages.json": "e17967e945c425053f8cbe9f4730d5d919fe6fc9598dbf8d694673741b7dcf21",
+    "manifest.json": "68efed03ecade79974e62b9f69a084a47cfa9262952b30b6436a2f2ac5b0b222",
+    "native-coverage.json": "2d7d5ae3e5f5739c93ba512e756f86ba1960dcb9109e5a46b77717e76f103cab",
+    "reconciliation.json": "f44cd0e34c60a291574df42a619ae8f7ea7a5ae58afad3895818700be85743f0"
+  },
+  "reviewedCapabilityCount": 3,
+  "ownedCapabilityIds": [
+    "capability.input.keymap",
+    "capability.input.quantity",
+    "capability.input.raw-key"
+  ],
+  "ticketOwnership": {
+    "capability.input.keymap": "SV-C005-001",
+    "capability.input.quantity": "SV-C005-002",
+    "capability.input.raw-key": "SV-C005-003"
+  },
+  "coverage": [
+    {
+      "capabilityId": "capability.input.keymap",
+      "acceptanceStage": "C005",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.input.keymap"
+        ],
+        "serverVersions": [
+          "All baseline versions supported by the cited owner; retain its version branches"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Normal/roguelike command maps preserve raw backslash bypass and control-prefix input. Escape, CR and hyphen are reserved no-ops; other unhandled keys retain the separate raw-key dispatch path. Full outcome allocation: stage C005. B: ранние login/birth/chat/movement prompts проходят этот input primitive; его ветви проверяются в production SV, поздние caller outcomes сохраняют отдельную приёмку."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.input.keymap.result",
+          "description": "Normal/roguelike command maps preserve raw backslash bypass and control-prefix input. Escape, CR and hyphen are reserved no-ops; other unhandled keys retain the separate raw-key dispatch path. Exercise all matching inventory branches with exact bytes and caller-specific cancellation.",
+          "sources": [
+            "source.reconciliation.input.keymap"
+          ]
+        },
+        {
+          "id": "obligation.input.keymap.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.input.keymap"
+          ]
+        },
+        {
+          "id": "obligation.input.keymap.allocation-checks",
+          "description": "Каждая собственная primitive ветвь по pinned source/инвентарю; production early caller, normal/roguelike/physical/macro, focus/resize/network/teardown; поздние caller tests не засчитываются. Точный проверяемый результат: Normal/roguelike command maps preserve raw backslash bypass and control-prefix input. Escape, CR and hyphen are reserved no-ops; other unhandled keys retain the separate raw-key dispatch path.",
+          "sources": [
+            "source.reconciliation.input.keymap"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.input.quantity",
+      "acceptanceStage": "C005",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.input.quantity",
+          "source.behavior.items-cmd-drop",
+          "source.behavior.items-store-purchase",
+          "source.behavior.information-receive-request-amt",
+          "source.allocation-b.s150",
+          "source.allocation-b.s151"
+        ],
+        "serverVersions": [
+          "All baseline versions supported by the cited owner; retain its version branches"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Preserve numeric caller limits and all shortcuts; Escape returns 0, while accepted empty input uses the caller default. Zero is interpreted by each caller, not universal cancellation. Full outcome allocation: stage C005. C: c_get_quantity вызывается item amounts/drop/takeoff и ordinary store buy/sell; B read-only receiver/pickup/direction ветви его не вызывают. Generic Receive_request_amt относится к server request caller, не автоматически к B. Удаляются неподтверждённые blanket edges B (таблица изменений), поздние D/E callers принимаются отдельно. Source wording correction before acceptance: current description says Escape/empty zero, but c_get_quantity cancels to0 while accepted empty uses predef (or PY_MAX_GOLD for negative predef). Preserve actual baseline behavior; explicit manifest/obligation wording correction under same ID, no new outcome."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.input.quantity.result",
+          "description": "Preserve numeric caller limits and all shortcuts; Escape returns 0, while accepted empty input uses the caller default. Zero is interpreted by each caller, not universal cancellation. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.input.quantity"
+          ]
+        },
+        {
+          "id": "obligation.input.quantity.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.input.quantity"
+          ]
+        },
+        {
+          "id": "obligation.input.quantity.allocation-checks",
+          "description": "Production c_get_quantity equivalent: predefined/empty/all letters/SPACE, k/M/G, maximum/minimum, Escape→0 and actual item/store interpretation. Test each C caller independently; D server request/E audio browser remain their own claims.",
+          "sources": [
+            "source.reconciliation.input.quantity",
+            "source.behavior.items-cmd-drop",
+            "source.behavior.items-store-purchase",
+            "source.behavior.information-receive-request-amt",
+            "source.allocation-b.s150",
+            "source.allocation-b.s151"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.input.raw-key",
+      "acceptanceStage": "C005",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.reconciliation.input.raw-key",
+          "source.protocol.items-send-raw-key"
+        ],
+        "serverVersions": [
+          "All baseline versions supported by the cited owner; retain its version branches"
+        ],
+        "builds": [
+          "Supported SV gameplay builds; preserve all baseline compile guards"
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Unmapped gameplay key follows baseline raw-key packet dispatch; reserved no-op keys remain excluded from that dispatch. Full outcome allocation: stage C005. B: ранние login/birth/chat/movement prompts проходят этот input primitive; его ветви проверяются в production SV, поздние caller outcomes сохраняют отдельную приёмку."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.input.raw-key.result",
+          "description": "Unmapped gameplay key follows baseline raw-key packet dispatch; reserved no-op keys remain excluded from that dispatch. Exercise every matching inventory row and exact input/wire branch, including absent-field defaults and failures.",
+          "sources": [
+            "source.reconciliation.input.raw-key"
+          ]
+        },
+        {
+          "id": "obligation.input.raw-key.lifecycle",
+          "description": "Observe this outcome through production SV with interleaved updates, focus/resize and teardown; no stale state or repeated effects. Shared primitive success does not certify this caller.",
+          "sources": [
+            "source.reconciliation.input.raw-key"
+          ]
+        },
+        {
+          "id": "obligation.input.raw-key.allocation-checks",
+          "description": "Каждая собственная primitive ветвь по pinned source/инвентарю; production early caller, normal/roguelike/physical/macro, focus/resize/network/teardown; поздние caller tests не засчитываются. Точный проверяемый результат: Unmapped gameplay key follows baseline raw-key packet dispatch; reserved no-op keys remain excluded from that dispatch.",
+          "sources": [
+            "source.protocol.items-send-raw-key"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Ticket 12 discovered an unallocated independently observable outcome; native implementation/evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    }
+  ],
+  "reviewedObligationCount": 9,
+  "platformPolicy": "Linux required; Windows/MinGW/Wine deferred per docs/agents/platform-validation.md. Canonical rows preserved verbatim."
+}

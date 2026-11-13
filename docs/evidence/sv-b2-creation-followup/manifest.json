@@ -1,0 +1,29 @@
+{
+  "capture": "Production sv_endpoint_draw with synthetic ordinary_name_entry SvLoginView (overview=true); SDL software/dummy; display scale override in scratch only. Not a protocol executor.",
+  "baseline": "Frozen pre-task scene/layout; shell baseline equals current. Both binaries use corrected same model. Connecting captures replaced, not evidence.",
+  "known_adaptations": [
+    "Unavailable birth attributes shown --; no fabricated chosen values",
+    "Native font rasterization differs from browser; native background seam remains current production"
+  ],
+  "files": {
+    ".scratch/sv-b2-name-style/after-fractional.png": "86408c038e9bf66d08180f48d286e4f7ad6bb062b9a58f3cc633d2585b36ceb4",
+    ".scratch/sv-b2-name-style/after-mid-draft.png": "ac870103152f0c453fdb17215c26d4ab5d75c5d5345c6b80fc3943a8d03f8e14",
+    ".scratch/sv-b2-name-style/after-min-draft.png": "7335b898fed69075486ef7a4ace060adeccf9318f3dd73ac306aebe2ae3bcee9",
+    ".scratch/sv-b2-name-style/after-min.png": "b1b6224ee8aa02ccb3f6e3beb3a0b325304fe2f64805e89aa0e2884c6c2c7624",
+    ".scratch/sv-b2-name-style/after-wide-short-draft.png": "1f08fd557a5abdb3a3f54de3116b9319d933de021d01bb95131520d5ced7e027",
+    ".scratch/sv-b2-name-style/after-wide.png": "9c5bfad583b6eafe459651ed409e229b54aca8c4184e25252040c06d0e3dec6f",
+    ".scratch/sv-b2-name-style/before-fractional.png": "f36fae805b7b66800cf1875611d31a1caa805246e7efce34556a8f464fedd56b",
+    ".scratch/sv-b2-name-style/before-mid-draft.png": "24b209bd686c0cde0e5924cc4182e7f71302f236f6a9e7c4d93eee788bf0a445",
+    ".scratch/sv-b2-name-style/before-min-draft.png": "62225ce2148ff086b7c2fc61d6c7b8d3396841cee91e163492afeb3126c4f5ff",
+    ".scratch/sv-b2-name-style/before-min.png": "0897f5a5156add475e53ba77597d12d828521aaff6a56a57ffac0b86632ce427",
+    ".scratch/sv-b2-name-style/before-wide-short-draft.png": "2fbaf26c1f6c2875b42f04fad9e08ae9d8ec5f95c64b7b24cd7d050c0436d270",
+    ".scratch/sv-b2-name-style/before-wide.png": "009e408fc77633495c26ce17f4249f7770d6b926f0e97eb8f02a5ccd8e30e36c",
+    ".scratch/sv-b2-name-style/reference-1024.png": "fdfc2cbf008d67ab12833ef9a29cda0ea1d6a45a4cc679c2a2706a5a51a9af1b",
+    ".scratch/sv-b2-name-style/reference-1920.png": "f3cf31a5caf1af48a4ddba6ba21eb47ce678a4fb6685314677824401b9f77f02"
+  },
+  "source": {
+    "src/client/sv/ui/endpoint-scene.c": "152b4890002ea2d8a6117c5f09184b3beaf460fd3cbbc47613c3c7dec962ee4f",
+    "src/client/sv/ui/login-layout.h": "c31d130851f9b839416567253d785eaab6f2e337844682a800afd5c7292b9c03",
+    "src/client/sv/ui/login-shell.c": "dd4279bcf45b6650d90e0dbef3795571aab4f4983dd9a32bdab2eeda547cdb95"
+  }
+}

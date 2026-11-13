@@ -1,0 +1,12 @@
+==30==LeakSanitizer has encountered a fatal error.
+==30==HINT: For debugging, try setting environment variable LSAN_OPTIONS=verbosity=1:log_threads=1
+==30==HINT: LeakSanitizer does not work under ptrace (strace, gdb, etc)
+==30==HINT: LeakSanitizer requires ptrace_scope to be disabled (e.g. echo 0 > /proc/sys/kernel/yama/ptrace_scope)
+Traceback (most recent call last):
+  File "/home/svechnik/Projects/tomenet_modern_client/tests/sv_request_checks.py", line 22, in <module>
+    subprocess.run([str(binary)], cwd=ROOT, check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/tmp/sv-requests-sqlfrula/checks']' returned non-zero exit status 1.

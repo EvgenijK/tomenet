@@ -1,0 +1,55 @@
+Production blur regression evidence (Linux, 2026-10-29)
+
+Actual executable native render capture; no substitute rendering implementation.
+Baseline/after command (capture path before.bmp then after.bmp):
+env SDL_VIDEODRIVER=dummy SDL_RENDER_DRIVER=software SV_B2_REDUCED_MOTION=1 SV_B2_BACKGROUND=0 SV_B2_CAPTURE=/tmp/sv-blur/before.bmp src/tomenet-sv --endpoint --profile-root /tmp/sv-blur/profile --library lib --fixture-window 1440x900 --frames 2
+
+CSS reference: lib/xtra/sv/login/reference/login.html:1134
+filter: contrast(.78) blur(2px), layer transform scale(1.04).
+
+Feedback loop: compare high frequency energy of top 60px native render crop
+(no interface widgets) to sharp native baseline. Reference target is the sharp
+capture GaussianBlur(2.08) with .78 contrast; assert ratio < .15.
+Red: native HF/baseline=1.0000; CSS expected ratio~.0104
+AssertionError: Background remains sharp: CSS-like blur missing
+Green: native HF/baseline=.0097; CSS expected ratio~.0104 (PASS).
+This metric catches absence of blur; it does not claim browser pixel equivalence.
+PNG captures are lossless conversions of the BMP production capture hook output.
+
+Root cause: PNG textures were uploaded at full resolution without any filter;
+existing correction removed 640x320 reduction but did not add the CSS filter.
+Fix: contrast(.78) and three-box approximation of Gaussian at full decoded size;
+source-space sigma = 2.08 * display_scale / cover_fit. Quantized box kernel cached
+per current/previous texture; regenerate only load/reset/rotation/kernel change.
+Do not filter icons/text/doors. Full-resolution original assets remain intact.
+
+All 19 background source PNG SHA256 verified unchanged against pre-edit manifest.
+All are 3168x1584 and opaque RGBA. Software/OpenGL share uploaded filtered texture.
+Memory is bounded by two steady textures, with one source+scratch surface during
+preparation; <= three textures plus two surfaces during replacement (~100MiB
+artwork data worst transient, excluding renderer/window/font resources).
+No per-frame CPU filtering and no 19-image decoded cache.
+
+Measured normal executable (dummy software, reduced motion, no capture), independent
+processes: 2 frames .274s, child maxRSS78704KiB; 60 frames1.231s, maxRSS78744KiB.
+These are whole-startup timings, not isolated filter timing or physical display FPS.
+make -C src -f makefile.sv tomenet-sv -j4 PASS (-Wall -Wextra -Werror).
+Actual X11 software/OpenGL validation belongs to reviewer evidence separately.
+
+Baseline login-shell.c SHA256: 9c9010d1e1056cd60d829a1b5883489108f940f7a82a369250147282cf947e0d
+Fixed login-shell.c SHA256: 10e508cf3137de19ff0c635aafe0bc6d941aabe8dbee68fe8e55952684249934
+Baseline source preserved during work: /tmp/login-shell-blur-before.c
+Source delta: blur-source-delta.patch (relative to that baseline, includes only this fix)
+
+Metric script used (temporary feedback loop, not a new suite):
+from PIL import Image, ImageFilter
+import sys
+base=Image.open('/tmp/sv-blur/before.bmp').convert('RGB').crop((0,0,1440,60))
+actual=Image.open(sys.argv[1]).convert('RGB').crop((0,0,1440,60))
+reference=base.filter(ImageFilter.GaussianBlur(2.08))
+def hf(im):
+ a=list(im.convert("L").getdata()); w,h=im.size
+ return sum((a[y*w+x]-a[y*w+x-1])**2+(a[y*w+x]-a[(y-1)*w+x])**2 for y in range(1,h) for x in range(1,w))/((w-1)*(h-1))
+ratio=hf(actual)/hf(base); target=hf(reference)/hf(base)
+print(f'native HF/baseline={ratio:.4f}; CSS contrast(.78) blur(2px) transformed sigma=2.08 expected HF ratio~{target*.78**2:.4f}')
+assert ratio < .15, 'Background remains sharp: CSS-like blur missing'

@@ -1,0 +1,49 @@
+[
+  {
+    "name": "missing",
+    "exit": 0,
+    "unchanged": true,
+    "capture": true,
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/src/tomenet-sv",
+      "--profile-root",
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c002/runtime/missing",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c002/runtime/servers.txt",
+      "--frames",
+      "2"
+    ],
+    "before": {},
+    "after": {}
+  },
+  {
+    "name": "configured",
+    "exit": 0,
+    "unchanged": true,
+    "capture": true,
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/src/tomenet-sv",
+      "--profile-root",
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c002/runtime/configured",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c002/runtime/servers.txt",
+      "--frames",
+      "2",
+      "-F90",
+      "--port",
+      "19002"
+    ],
+    "before": {
+      "tomenet.cfg": "6c481b415678a0e6aff32e393ef555a30711308fcc5510042510a2a38aaaa3fe",
+      "sv/tomenet.cfg": "445cc5137200d719c2154aa813c54e38363f145ca6490054d9994a723d4b4179"
+    },
+    "after": {
+      "tomenet.cfg": "6c481b415678a0e6aff32e393ef555a30711308fcc5510042510a2a38aaaa3fe",
+      "sv/tomenet.cfg": "445cc5137200d719c2154aa813c54e38363f145ca6490054d9994a723d4b4179"
+    }
+  }
+]

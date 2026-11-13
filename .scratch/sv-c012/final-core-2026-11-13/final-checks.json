@@ -1,0 +1,51 @@
+{
+  "started_utc": "2026-11-13T14:14:59.730511+00:00",
+  "hashes_before": {
+    "src/client/sv/ui/hud.c": "80ac4b283a7510c2330e3bdf23bbd63c0407ce237ecd155ef2dcde11efb3d423",
+    "src/client/sv/ui/hud.h": "25022305206ef88f909937b1519934de7ff3ace3244f02905176681769fcd99c",
+    "src/client/sv/protocol/status-update.c": "dcb70acf92f7e84c979303d68911268dfb12260d440937e94ec6c1a2d0a5736c",
+    "src/client/sv/session/session.c": "b33dfdddf3a9c036869709b89d0066fae17127f0036b3740c7c464f3fcb62ace",
+    "src/client/sv/app.c": "679b598d69c1e375a8e89badf7621efce13b06da2bd3da6e8f15531b51e9d739",
+    "tests/sv/status.c": "56e29195b0b1fe66736aea87b94d0c7edffb3fd71514ac4c92da6fd8d7b6e134",
+    "tests/sv/status-fixture.h": "2f90eeaa91f94f1073c7afb5e0ce167cd57e72a7e02f2263323fcb025b691516",
+    "tests/sv/diagnostics/launcher.c": "3583bc6ef6e9464f0ca680acbfcd328072b03b319b460cfdaabb39fc74277670",
+    "src/tomenet-sv": "58554f922710f3f0629089e3cab8f73817d4ddbbb4aaf524f3c7ae4830a76c6b"
+  },
+  "commands": [
+    {
+      "argv": [
+        "make",
+        "-C",
+        "src",
+        "-f",
+        "makefile.sv",
+        "-j4",
+        "shell",
+        "sv-status-check"
+      ],
+      "exit": 0,
+      "log": "build.log"
+    },
+    {
+      "argv": [
+        "/home/svechnik/Projects/tomenet_modern_client/src/.sv-build/linux/bafdc534e11c1a7cb47f/checks/status"
+      ],
+      "exit": 0,
+      "log": "status.log"
+    }
+  ],
+  "check_sha256": "c46d5671a809080fcc9780cc925aa85bc54d3ebe7570123491b46a3bbbf2bed8",
+  "hashes_after": {
+    "src/client/sv/ui/hud.c": "80ac4b283a7510c2330e3bdf23bbd63c0407ce237ecd155ef2dcde11efb3d423",
+    "src/client/sv/ui/hud.h": "25022305206ef88f909937b1519934de7ff3ace3244f02905176681769fcd99c",
+    "src/client/sv/protocol/status-update.c": "dcb70acf92f7e84c979303d68911268dfb12260d440937e94ec6c1a2d0a5736c",
+    "src/client/sv/session/session.c": "b33dfdddf3a9c036869709b89d0066fae17127f0036b3740c7c464f3fcb62ace",
+    "src/client/sv/app.c": "679b598d69c1e375a8e89badf7621efce13b06da2bd3da6e8f15531b51e9d739",
+    "tests/sv/status.c": "56e29195b0b1fe66736aea87b94d0c7edffb3fd71514ac4c92da6fd8d7b6e134",
+    "tests/sv/status-fixture.h": "2f90eeaa91f94f1073c7afb5e0ce167cd57e72a7e02f2263323fcb025b691516",
+    "tests/sv/diagnostics/launcher.c": "3583bc6ef6e9464f0ca680acbfcd328072b03b319b460cfdaabb39fc74277670",
+    "src/tomenet-sv": "58554f922710f3f0629089e3cab8f73817d4ddbbb4aaf524f3c7ae4830a76c6b"
+  },
+  "source_stable": true,
+  "finished_utc": "2026-11-13T14:15:00.155811+00:00"
+}

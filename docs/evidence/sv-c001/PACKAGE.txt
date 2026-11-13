@@ -1,0 +1,12 @@
+TomeNET SV C001 — pregame-only; gameplay/final release acceptance pending.
+package=tomenet-sv-4.9.4-linux-amd64
+development_host=no
+builder=Fedora Linux 41 (Container Image)
+revision=4ce96497068c93fe6a34818c356a86c285e18f0b
+source_changes_sha256=9b25b50b422d91031aca904af8ddea9ebd377b0dc8c189d52e7819a52e1e17fd
+packager_sha256=d13ca37cd50be14b28360ca47674903a65c3ef48976dc74d9b0b351fe6996381
+libc=glibc 2.40
+interpreter=/lib64/ld-linux-x86-64.so.2
+System requirements: x86_64 Linux kernel and compatible glibc/loader; display session and GPU drivers for accelerated rendering.
+Secret Service is an optional external provider; absence uses the existing session-only policy.
+No general all-Linux compatibility or C001 acceptance is asserted by packaging.

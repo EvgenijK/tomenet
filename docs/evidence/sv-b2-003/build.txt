@@ -1,0 +1,9 @@
+clang version 22.1.8
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+
+3.4.16
+3.2.2
+26.6.20
+1.6.58

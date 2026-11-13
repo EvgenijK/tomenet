@@ -1,0 +1,39 @@
+#ifndef SV_PROTOCOL_H
+#define SV_PROTOCOL_H
+#include "result.h"
+#include "settings/audio.h"
+#include "session/session.h"
+typedef struct SvProtocol SvProtocol;
+typedef struct {
+    void *context;
+    void (*now)(void *context, int32_t *seconds, int32_t *microseconds);
+} SvPingClock;
+/* Fixed slice limits, observable by callers for backpressure. */
+#define SV_PROTOCOL_CAPACITY 1024
+SvProtocol *sv_protocol_create(const int version[6]);
+void sv_protocol_destroy(SvProtocol *protocol);
+/* All-or-nothing append. BACKPRESSURE consumes nothing; caller retains the bytes. */
+SvResult sv_protocol_receive(SvProtocol *protocol, const void *bytes, size_t size);
+/* One complete input, or WAITING without any model-visible change.
+ * RECOVERED consumes the current receive batch, atomically queues unknown +
+ * redraw, and publishes the baseline diagnostic as a MESSAGE change. */
+SvResult sv_protocol_next(SvProtocol *protocol, SvChange *change);
+size_t sv_protocol_pending(const SvProtocol *protocol);
+size_t sv_protocol_capacity(const SvProtocol *protocol);
+size_t sv_protocol_output_capacity(const SvProtocol *protocol);
+SvOutput sv_protocol_output(SvProtocol *protocol, void *bytes, size_t capacity);
+SvResult sv_protocol_key_reply(SvProtocol *protocol, int id, unsigned char key);
+SvResult sv_protocol_raw_key(SvProtocol *protocol, unsigned char key);
+SvResult sv_protocol_keepalive(SvProtocol *protocol);
+SvResult sv_protocol_set_ping_clock(SvProtocol *protocol, SvPingClock clock);
+SvResult sv_protocol_send_ping(SvProtocol *protocol);
+/* Bounded preparation ingress may retain an unsupported tail without invoking
+ * gameplay unknown-packet recovery. This reports actual decoder coverage. */
+bool sv_protocol_supports_packet(unsigned char type);
+SvResult sv_protocol_redraw(SvProtocol *protocol);
+/* Prepared effective audio snapshot; reporting copy only, not local names. */
+SvResult sv_protocol_set_reporting_audio(SvProtocol *protocol, const SvSettingsAudioSnapshot *audio);
+/* Resource owner calls only after confirmed effective map change. Currently
+ * reports the honest disabled/missing map state; active consumers come later. */
+SvResult sv_protocol_send_font(SvProtocol *protocol);
+#endif

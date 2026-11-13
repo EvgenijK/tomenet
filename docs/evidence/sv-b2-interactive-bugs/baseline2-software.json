@@ -1,0 +1,20 @@
+{
+  "server_initial": true,
+  "doubleclick_account": false,
+  "revealed": false,
+  "back_window_alive": true,
+  "back_server": false,
+  "other_account": false,
+  "secret_cleared": false,
+  "reveal_reset": true,
+  "escape_returns_alive": false,
+  "errors": [
+    "row doubleclick did not open account",
+    "doubleclick_account",
+    "revealed",
+    "back_server",
+    "other_account",
+    "secret_cleared",
+    "escape_returns_alive"
+  ]
+}

@@ -1,0 +1,444 @@
+{
+  "schemaVersion": 1,
+  "stage": "C002",
+  "status": "planned",
+  "snapshotKind": "local-planning-only",
+  "snapshotDate": "2026-11-05",
+  "canonicalSha256": {
+    "stages.json": "e17967e945c425053f8cbe9f4730d5d919fe6fc9598dbf8d694673741b7dcf21",
+    "manifest.json": "68efed03ecade79974e62b9f69a084a47cfa9262952b30b6436a2f2ac5b0b222",
+    "native-coverage.json": "2d7d5ae3e5f5739c93ba512e756f86ba1960dcb9109e5a46b77717e76f103cab",
+    "reconciliation.json": "f44cd0e34c60a291574df42a619ae8f7ea7a5ae58afad3895818700be85743f0"
+  },
+  "reviewedCapabilityCount": 6,
+  "ownedCapabilityIds": [
+    "capability.settings.load",
+    "capability.settings.defaults",
+    "capability.settings.parse",
+    "capability.settings.cli-overrides",
+    "capability.settings.exit-unsaved",
+    "capability.settings.aliases"
+  ],
+  "coverage": [
+    {
+      "capabilityId": "capability.settings.load",
+      "acceptanceStage": "C002",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-read-mangrc-49a7d2",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s825",
+          "source.allocation-b.s826",
+          "source.allocation-b.s827",
+          "source.allocation-b.s889",
+          "source.allocation-b.s841",
+          "source.allocation-b.s891",
+          "source.allocation-b.s892"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Load independent U/sv/tomenet.cfg and own global/system/character OPT layers; never inherit legacy user CFG/OPT through bootstrap includes. Apply character options before their first send. Full outcome allocation: stage C002. Own CFG/OPT namespace и character pre-send application обязательны реальному входу."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.settings.load.result",
+          "description": "Load independent U/sv/tomenet.cfg and own global/system/character OPT layers; never inherit legacy user CFG/OPT through bootstrap includes. Apply character options before their first send.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.settings.load.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.settings.load.allocation-checks",
+          "description": "Independent S load global/system/character layers до первого Send_options; shared bootstrap не импортирует legacy user OPT. Production SV путь; проверка последующего reload и unrelated owner isolation там, где есть запись.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s825",
+            "source.allocation-b.s826",
+            "source.allocation-b.s827"
+          ]
+        },
+        {
+          "id": "obligation.settings.load.startup-audio-packs",
+          "description": "B startup projection прочитывает requested pack/subset, resolves overlay/bundled names, applies fallback/effective initial audio и reports identity. E whole config outcomes add live chooser/preview/Save/reload without semantic narrowing. Initial sound/music folder+subset loaded from S CFG before actual audio initialization; invalid/missing pack preserves requested name and exposes effective failure. No implicit CFG write during startup; verify Send_audio identity and disabled/missing sound behavior. Full deferred outcomes: capability.configuration.soundpackfolder, capability.configuration.soundpacksubset, capability.configuration.musicpackfolder, capability.configuration.musicpacksubset.",
+          "sources": [
+            "source.allocation-b.s889",
+            "source.allocation-b.s841"
+          ]
+        },
+        {
+          "id": "obligation.settings.load.startup-audio-device",
+          "description": "B startup projection parses/defaults/applies cacheAudio,rate4000..48000,tracks4..32,buffer128..8192 при initial open. Full live preview/reconfigure/Save/reload IDs remain E. Boundary/invalid/default serialized device fields passed into actual production init, stereo output remains stereo (tracks!=speaker count). No-device startup stays responsive and connected, effective degradation visible, requested config not overwritten. Full deferred outcomes: capability.configuration.cacheaudio, capability.configuration.audiosamplerate, capability.configuration.audiochannels, capability.configuration.audiobuffer.",
+          "sources": [
+            "source.allocation-b.s891",
+            "source.allocation-b.s892"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.settings.defaults",
+      "acceptanceStage": "C002",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-read-mangrc-49a7d2",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s825",
+          "source.allocation-b.s826",
+          "source.allocation-b.s827"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Use client stock/compiled defaults with approved SV overrides: fullscreen, wide, UI100%, CascadiaMono-Regular.ttf text,16x24x.pcf map, graphics1/16x24sv, Linear tiles, Nearest PCF; FPS100,44100Hz/32 tracks/1024 buffer, volume70. Missing files initialize memory only. Full outcome allocation: stage C002. До первого окна/login нужны конкретные approved defaults и resource names."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.settings.defaults.result",
+          "description": "Use client stock/compiled defaults with approved SV overrides: fullscreen, wide, UI100%, CascadiaMono-Regular.ttf text,16x24x.pcf map, graphics1/16x24sv, Linear tiles, Nearest PCF; FPS100,44100Hz/32 tracks/1024 buffer, volume70. Missing files initialize memory only.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.settings.defaults.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.settings.defaults.allocation-checks",
+          "description": "Missing config оставляет filesystem неизменным; проверить fullscreen/wide/UI100/fonts/graphics/filter/FPS/audio defaults и invalid-value fallback. Production SV путь; проверка последующего reload и unrelated owner isolation там, где есть запись.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s825",
+            "source.allocation-b.s826",
+            "source.allocation-b.s827"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.settings.parse",
+      "acceptanceStage": "C002",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-read-mangrc-49a7d2",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s825",
+          "source.allocation-b.s826",
+          "source.allocation-b.s827"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Parse line-oriented CFG, LF/CRLF, complete key tokens, comments and flags; last well-formed assignment wins. Report invalid values and use field defaults; reject scalar NUL/newline/unserializable data. Preserve compatible unknown fields; incompatible future schema uses defaults and cannot be overwritten. Full outcome allocation: stage C002. Malformed startup CFG/OPT иначе изменяет endpoint/resources/limits до game entry."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.settings.parse.result",
+          "description": "Parse line-oriented CFG, LF/CRLF, complete key tokens, comments and flags; last well-formed assignment wins. Report invalid values and use field defaults; reject scalar NUL/newline/unserializable data. Preserve compatible unknown fields; incompatible future schema uses defaults and cannot be overwritten.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.settings.parse.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.settings.parse.allocation-checks",
+          "description": "LF/CRLF,last-valid token, prefix collision, malformed scalar/NUL,newline,unknown records,future schema write refusal. Production SV путь; проверка последующего reload и unrelated owner isolation там, где есть запись.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s825",
+            "source.allocation-b.s826",
+            "source.allocation-b.s827"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.settings.cli-overrides",
+      "acceptanceStage": "C002",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-read-mangrc-49a7d2",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s825",
+          "source.allocation-b.s826",
+          "source.allocation-b.s827"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Apply baseline CLI/environment/root overrides for this launch without automatic CFG writes or relocation caused by import. Full outcome allocation: stage C002. Endpoint/profile/root overrides меняют B connect startup."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.settings.cli-overrides.result",
+          "description": "Apply baseline CLI/environment/root overrides for this launch without automatic CFG writes or relocation caused by import.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.settings.cli-overrides.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.settings.cli-overrides.allocation-checks",
+          "description": "CLI/environment precedence; нет implicit save или перемещения U/B после import; fingerprint остаётся U. Production SV путь; проверка последующего reload и unrelated owner isolation там, где есть запись.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s825",
+            "source.allocation-b.s826",
+            "source.allocation-b.s827"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.settings.exit-unsaved",
+      "acceptanceStage": "C002",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-read-mangrc-49a7d2",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s825",
+          "source.allocation-b.s826",
+          "source.allocation-b.s827"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Normal exit neither saves pending CFG/OPT changes nor introduces another prompt; other file lifecycles remain independent. Full outcome allocation: stage C002. B quit/relog не должен автоматически писать pending CFG/OPT."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.settings.exit-unsaved.result",
+          "description": "Normal exit neither saves pending CFG/OPT changes nor introduces another prompt; other file lifecycles remain independent.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.settings.exit-unsaved.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.settings.exit-unsaved.allocation-checks",
+          "description": "Normal exit с dirty settings не сохраняет и не добавляет prompt; history/DNA/bookmarks independent lifecycles продолжаются. Production SV путь; проверка последующего reload и unrelated owner isolation там, где есть запись. In A–F, invoking this outcome's Guide entry displays exactly \"The guide is in development\", performs no Guide content, bookmark, network or update operation, preserves the current interaction state, and returns to the actual caller. This temporary native placeholder is not Guide capability coverage.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s825",
+            "source.allocation-b.s826",
+            "source.allocation-b.s827"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.settings.aliases",
+      "acceptanceStage": "C002",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-read-mangrc-49a7d2",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.behavior.settings-process-pref-file-aux-aux-3df064",
+          "source.allocation-b.s825",
+          "source.allocation-b.s826",
+          "source.allocation-b.s827"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Convert exact obsolete option aliases including inversions/one-to-many/discards in memory until Save; do not guess renames or rewrite legacy import sources. Full outcome allocation: stage C002. Old names встречаются startup PRF/import, exact inversion/discard применяются до option send."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.settings.aliases.result",
+          "description": "Convert exact obsolete option aliases including inversions/one-to-many/discards in memory until Save; do not guess renames or rewrite legacy import sources.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-process-pref-file-aux-aux-3df064"
+          ]
+        },
+        {
+          "id": "obligation.settings.aliases.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-process-pref-file-aux-aux-3df064"
+          ]
+        },
+        {
+          "id": "obligation.settings.aliases.allocation-checks",
+          "description": "Каждая source alias branch: inversion, one-to-many, discard; source не rewritten до explicit destination Save. Production SV путь; проверка последующего reload и unrelated owner isolation там, где есть запись.",
+          "sources": [
+            "source.behavior.settings-read-mangrc-49a7d2",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-process-pref-file-aux-aux-3df064",
+            "source.allocation-b.s825",
+            "source.allocation-b.s826",
+            "source.allocation-b.s827"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    }
+  ],
+  "tickets": [
+    {
+      "id": "SV-C002-001",
+      "path": "SV-C002-001-defaults-parser.md",
+      "kind": "implementation",
+      "dependsOn": [],
+      "owns": [
+        "capability.settings.defaults",
+        "capability.settings.parse"
+      ]
+    },
+    {
+      "id": "SV-C002-002",
+      "path": "SV-C002-002-load-options.md",
+      "kind": "implementation",
+      "dependsOn": [
+        "SV-C002-001"
+      ],
+      "owns": [
+        "capability.settings.load",
+        "capability.settings.aliases"
+      ]
+    },
+    {
+      "id": "SV-C002-003",
+      "path": "SV-C002-003-startup-overrides-exit.md",
+      "kind": "implementation",
+      "dependsOn": [
+        "SV-C002-001",
+        "SV-C002-002"
+      ],
+      "owns": [
+        "capability.settings.cli-overrides",
+        "capability.settings.exit-unsaved"
+      ]
+    },
+    {
+      "id": "SV-C002-004",
+      "path": "SV-C002-004-acceptance.md",
+      "kind": "acceptance",
+      "dependsOn": [
+        "SV-C002-001",
+        "SV-C002-002",
+        "SV-C002-003"
+      ],
+      "owns": []
+    }
+  ]
+}

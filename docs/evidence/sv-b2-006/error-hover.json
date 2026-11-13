@@ -1,0 +1,26 @@
+[
+  {
+    "label": "software-error-scale1.25",
+    "backend": "software",
+    "logical": [
+      1024,
+      768
+    ],
+    "virtualDisplayScale": 1.25,
+    "input": "actual keyboard credentials; hover Back; scaled actual Retry attempt; visual result reviewed separately",
+    "binarySha256": "65b6798b679a48c92f9da05195a7d8d3e34485d4145aa58b12b7ea8bad58450a",
+    "result": "PASS: actual Retry returns retained Test with cleared password; actual unfocused Back hover visibly distinct"
+  },
+  {
+    "label": "opengl-error-scale1.5",
+    "backend": "opengl",
+    "logical": [
+      1024,
+      768
+    ],
+    "virtualDisplayScale": 1.5,
+    "input": "actual keyboard credentials; hover Back; scaled actual Retry attempt; visual result reviewed separately",
+    "binarySha256": "65b6798b679a48c92f9da05195a7d8d3e34485d4145aa58b12b7ea8bad58450a",
+    "result": "PASS: actual Retry returns retained Test with cleared password; actual unfocused Back hover visibly distinct"
+  }
+]

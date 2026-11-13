@@ -1,0 +1,1 @@
+SV Chronicle production parser: formats, colors, entities, rollover and malformed bounds passed

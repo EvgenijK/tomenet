@@ -1,0 +1,716 @@
+{
+  "schemaVersion": 1,
+  "stage": "C006",
+  "status": "planned",
+  "snapshotKind": "local-planning-only",
+  "snapshotDate": "2026-11-09",
+  "canonicalSha256": {
+    "stages.json": "e17967e945c425053f8cbe9f4730d5d919fe6fc9598dbf8d694673741b7dcf21",
+    "manifest.json": "68efed03ecade79974e62b9f69a084a47cfa9262952b30b6436a2f2ac5b0b222",
+    "native-coverage.json": "2d7d5ae3e5f5739c93ba512e756f86ba1960dcb9109e5a46b77717e76f103cab",
+    "reconciliation.json": "f44cd0e34c60a291574df42a619ae8f7ea7a5ae58afad3895818700be85743f0"
+  },
+  "reviewedCapabilityCount": 11,
+  "ownedCapabilityIds": [
+    "capability.fonts.text-select",
+    "capability.fonts.map-select",
+    "capability.fonts.pcf",
+    "capability.fonts.ttf",
+    "capability.fonts.fallback",
+    "capability.fonts.live-failure",
+    "capability.fonts.tile-fallback",
+    "capability.fonts.graphics-filter",
+    "capability.fonts.pcf-filter",
+    "capability.fonts.outline",
+    "capability.fonts.asset-validation"
+  ],
+  "ticketOwnership": {
+    "capability.fonts.text-select": "SV-C006-004",
+    "capability.fonts.map-select": "SV-C006-001",
+    "capability.fonts.pcf": "SV-C006-003",
+    "capability.fonts.ttf": "SV-C006-003",
+    "capability.fonts.fallback": "SV-C006-004",
+    "capability.fonts.live-failure": "SV-C006-004",
+    "capability.fonts.tile-fallback": "SV-C006-005",
+    "capability.fonts.graphics-filter": "SV-C006-005",
+    "capability.fonts.pcf-filter": "SV-C006-005",
+    "capability.fonts.outline": "SV-C006-005",
+    "capability.fonts.asset-validation": "SV-C006-006"
+  },
+  "coverage": [
+    {
+      "capabilityId": "capability.fonts.text-select",
+      "acceptanceStage": "C006",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-force-font-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s881",
+          "source.allocation-b.s882",
+          "source.allocation-b.s883"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Select text font/profile independently of map definitions; persist requested selection privately only on Save. Full outcome allocation: stage C006. Рекомендация сохранить полный B resource outcome вместе с ранними configuration/settings Save claims и geometry/resource matrix. План требует B runtime rendering, но сам по себе НЕ доказывает обязательность всего live chooser/filter/editor/corpus: ранняя полнота здесь предложена для согласованной реализации/проверок. Independent text role preview+Save, no map mapping/server definitions changed. Whole ID includes its specified selected/effective/error behavior."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.fonts.text-select.result",
+          "description": "Select text font/profile independently of map definitions; persist requested selection privately only on Save.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.text-select.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.text-select.allocation-checks",
+          "description": "Independent text role preview+Save, no map mapping/server definitions changed Font/resource disappearance/reappearance, fail before publish, recreate current scene; separate Linux/Windows evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s881",
+            "source.allocation-b.s882",
+            "source.allocation-b.s883"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.fonts.map-select",
+      "acceptanceStage": "C006",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-force-font-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.protocol.settings-send-font-9b42f3",
+          "source.allocation-b.s881",
+          "source.allocation-b.s882",
+          "source.allocation-b.s883"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Select map font/profile preserving map-font→mapping reload→graphics override and required server visual-definition updates; text-only changes do not trigger this. Full outcome allocation: stage C006. Рекомендация сохранить полный B resource outcome вместе с ранними configuration/settings Save claims и geometry/resource matrix. План требует B runtime rendering, но сам по себе НЕ доказывает обязательность всего live chooser/filter/editor/corpus: ранняя полнота здесь предложена для согласованной реализации/проверок. Map font→mapping reload→graphics override→server visual update, independent from text role. Whole ID includes its specified selected/effective/error behavior."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.fonts.map-select.result",
+          "description": "Select map font/profile preserving map-font→mapping reload→graphics override and required server visual-definition updates; text-only changes do not trigger this.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-send-font-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.fonts.map-select.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-send-font-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.fonts.map-select.wire",
+          "description": "Exercise each version/build branch of Send_font (exact pinned body in settings reconciliation), including split/chained packets, original signedness/colour/control bytes and error responses. A partial frame commits nothing; complete changes retain order. Observe real emitted bytes and lifecycle, not only a screenshot.",
+          "sources": [
+            "source.protocol.settings-send-font-9b42f3",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.map-select.allocation-checks",
+          "description": "Map font→mapping reload→graphics override→server visual update, independent from text role Font/resource disappearance/reappearance, fail before publish, recreate current scene; separate Linux/Windows evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-send-font-9b42f3",
+            "source.allocation-b.s881",
+            "source.allocation-b.s882",
+            "source.allocation-b.s883"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.fonts.pcf",
+      "acceptanceStage": "C006",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-force-font-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s881",
+          "source.allocation-b.s882",
+          "source.allocation-b.s883"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Load custom/bundled PCF via FreeType encoded-ID/charmap/metrics/default semantics including nonzero origins and partial ranges; prepare glyphs at final geometry, never auto-replace successful PCF for aesthetics. Full outcome allocation: stage C006. Map/font prerequisites cannot be deferred when claiming B rendered flows: Encoded-ID/default/charmap/metrics,12x24/8x16 origin1 and16x22 partial range, successful custom PCF not replaced. Whole ID includes its specified selected/effective/error behavior."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.fonts.pcf.result",
+          "description": "Load custom/bundled PCF via FreeType encoded-ID/charmap/metrics/default semantics including nonzero origins and partial ranges; prepare glyphs at final geometry, never auto-replace successful PCF for aesthetics.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.pcf.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.pcf.allocation-checks",
+          "description": "Encoded-ID/default/charmap/metrics,12x24/8x16 origin1 and16x22 partial range, successful custom PCF not replaced Font/resource disappearance/reappearance, fail before publish, recreate current scene; separate Linux/Windows evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s881",
+            "source.allocation-b.s882",
+            "source.allocation-b.s883"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.fonts.ttf",
+      "acceptanceStage": "C006",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-force-font-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s881",
+          "source.allocation-b.s882",
+          "source.allocation-b.s883"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Load bundled v2407.24 CascadiaMono-Regular.ttf/profile with OFL/copyright and custom TTF via SDL_ttf final-metric rasterization; preserve one-cell identity and proportional-font contract. Full outcome allocation: stage C006. Map/font prerequisites cannot be deferred when claiming B rendered flows: Cascadia v2407.24 metadata/license and custom proportional TTF final-metric one-cell rendering. Whole ID includes its specified selected/effective/error behavior."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.fonts.ttf.result",
+          "description": "Load bundled v2407.24 CascadiaMono-Regular.ttf/profile with OFL/copyright and custom TTF via SDL_ttf final-metric rasterization; preserve one-cell identity and proportional-font contract.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.ttf.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.ttf.allocation-checks",
+          "description": "Cascadia v2407.24 metadata/license and custom proportional TTF final-metric one-cell rendering Font/resource disappearance/reappearance, fail before publish, recreate current scene; separate Linux/Windows evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s881",
+            "source.allocation-b.s882",
+            "source.allocation-b.s883"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.fonts.fallback",
+      "acceptanceStage": "C006",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-force-font-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s881",
+          "source.allocation-b.s882",
+          "source.allocation-b.s883"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Startup text falls back to bundled Cascadia then16x24x PCF; map to16x24x PCF; all fonts failing stops startup with resource error. Keep requested name, effective resource and failure distinct. Full outcome allocation: stage C006. Map/font prerequisites cannot be deferred when claiming B rendered flows: Requested/effective names distinct. Whole ID includes its specified selected/effective/error behavior."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.fonts.fallback.result",
+          "description": "Startup text falls back to bundled Cascadia then16x24x PCF; map to16x24x PCF; all fonts failing stops startup with resource error. Keep requested name, effective resource and failure distinct.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.fallback.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.fallback.allocation-checks",
+          "description": "Requested/effective names distinct; text Cascadia→16x24x and map16x24x; all failing means startup resource error Font/resource disappearance/reappearance, fail before publish, recreate current scene; separate Linux/Windows evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s881",
+            "source.allocation-b.s882",
+            "source.allocation-b.s883"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.fonts.live-failure",
+      "acceptanceStage": "C006",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-force-font-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s881",
+          "source.allocation-b.s882",
+          "source.allocation-b.s883"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Validate replacement before publish; failed live font/profile/tiles selection retains previous working stack and draft requested/effective distinction. Full outcome allocation: stage C006. Рекомендация сохранить полный B resource outcome вместе с ранними configuration/settings Save claims и geometry/resource matrix. План требует B runtime rendering, но сам по себе НЕ доказывает обязательность всего live chooser/filter/editor/corpus: ранняя полнота здесь предложена для согласованной реализации/проверок. Invalid replacement cannot publish. Whole ID includes its specified selected/effective/error behavior."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.fonts.live-failure.result",
+          "description": "Validate replacement before publish; failed live font/profile/tiles selection retains previous working stack and draft requested/effective distinction.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.live-failure.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.live-failure.allocation-checks",
+          "description": "Invalid replacement cannot publish; previous working stack kept, request/draft failure visible Font/resource disappearance/reappearance, fail before publish, recreate current scene; separate Linux/Windows evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s881",
+            "source.allocation-b.s882",
+            "source.allocation-b.s883"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.fonts.tile-fallback",
+      "acceptanceStage": "C006",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-force-font-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s881",
+          "source.allocation-b.s882",
+          "source.allocation-b.s883"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Unusable selected tileset falls back to font-only map with message, preserving requested tileset/enabled preference for later startup. Full outcome allocation: stage C006. Map/font prerequisites cannot be deferred when claiming B rendered flows: Missing/invalid selected tiles produces font-only map+message. Whole ID includes its specified selected/effective/error behavior."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.fonts.tile-fallback.result",
+          "description": "Unusable selected tileset falls back to font-only map with message, preserving requested tileset/enabled preference for later startup.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.tile-fallback.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.tile-fallback.allocation-checks",
+          "description": "Missing/invalid selected tiles produces font-only map+message; requested preference survives for later recovery Font/resource disappearance/reappearance, fail before publish, recreate current scene; separate Linux/Windows evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s881",
+            "source.allocation-b.s882",
+            "source.allocation-b.s883"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.fonts.graphics-filter",
+      "acceptanceStage": "C006",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-force-font-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s881",
+          "source.allocation-b.s882",
+          "source.allocation-b.s883"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Select Nearest/Linear/PixelArt for authored tiles/raw pictures; decode encoded masks first and use Nearest recolour coverage/authored outline. Unsupported PixelArt explicitly falls back to Nearest, preserving request. Full outcome allocation: stage C006. Рекомендация сохранить полный B resource outcome вместе с ранними configuration/settings Save claims и geometry/resource matrix. План требует B runtime rendering, но сам по себе НЕ доказывает обязательность всего live chooser/filter/editor/corpus: ранняя полнота здесь предложена для согласованной реализации/проверок. Nearest/Linear/PixelArt authored layers. Whole ID includes its specified selected/effective/error behavior."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.fonts.graphics-filter.result",
+          "description": "Select Nearest/Linear/PixelArt for authored tiles/raw pictures; decode encoded masks first and use Nearest recolour coverage/authored outline. Unsupported PixelArt explicitly falls back to Nearest, preserving request.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.graphics-filter.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.graphics-filter.allocation-checks",
+          "description": "Nearest/Linear/PixelArt authored layers; unsupported PixelArt explicit Nearest effective fallback, requested retained Font/resource disappearance/reappearance, fail before publish, recreate current scene; separate Linux/Windows evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s881",
+            "source.allocation-b.s882",
+            "source.allocation-b.s883"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.fonts.pcf-filter",
+      "acceptanceStage": "C006",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-force-font-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s881",
+          "source.allocation-b.s882",
+          "source.allocation-b.s883"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Independent Nearest/Linear/PixelArt PCF filter defaults Nearest; font successful identity remains unchanged and glyph boundaries do not bleed. Full outcome allocation: stage C006. Рекомендация сохранить полный B resource outcome вместе с ранними configuration/settings Save claims и geometry/resource matrix. План требует B runtime rendering, но сам по себе НЕ доказывает обязательность всего live chooser/filter/editor/corpus: ранняя полнота здесь предложена для согласованной реализации/проверок. Independent PCF filter nearest default, no boundary bleed or glyph ID change. Whole ID includes its specified selected/effective/error behavior."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.fonts.pcf-filter.result",
+          "description": "Independent Nearest/Linear/PixelArt PCF filter defaults Nearest; font successful identity remains unchanged and glyph boundaries do not bleed.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.pcf-filter.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.pcf-filter.allocation-checks",
+          "description": "Independent PCF filter nearest default, no boundary bleed or glyph ID change Font/resource disappearance/reappearance, fail before publish, recreate current scene; separate Linux/Windows evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s881",
+            "source.allocation-b.s882",
+            "source.allocation-b.s883"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.fonts.outline",
+      "acceptanceStage": "C006",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-force-font-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s881",
+          "source.allocation-b.s882",
+          "source.allocation-b.s883"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Generate configured outlines at final size within individual tile bounds; no subsequent steady-state scaling. Full outcome allocation: stage C006. Рекомендация сохранить полный B resource outcome вместе с ранними configuration/settings Save claims и geometry/resource matrix. План требует B runtime rendering, но сам по себе НЕ доказывает обязательность всего live chooser/filter/editor/corpus: ранняя полнота здесь предложена для согласованной реализации/проверок. Final-sized per-tile outline inside bounds, no later steady scaling. Whole ID includes its specified selected/effective/error behavior."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.fonts.outline.result",
+          "description": "Generate configured outlines at final size within individual tile bounds; no subsequent steady-state scaling.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.outline.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.outline.allocation-checks",
+          "description": "Final-sized per-tile outline inside bounds, no later steady scaling Font/resource disappearance/reappearance, fail before publish, recreate current scene; separate Linux/Windows evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s881",
+            "source.allocation-b.s882",
+            "source.allocation-b.s883"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.fonts.asset-validation",
+      "acceptanceStage": "C006",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-force-font-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s881",
+          "source.allocation-b.s882",
+          "source.allocation-b.s883"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Discover and validate every bundled font/tileset/profile; deep corpus includes9x15,9x15tg,16x24tg+16x24sv,12x24/8x16 origin and16x22 partial range. Separate Linux software/accelerated and Windows evidence. Full outcome allocation: stage C006. Рекомендация сохранить полный B resource outcome вместе с ранними configuration/settings Save claims и geometry/resource matrix. План требует B runtime rendering, но сам по себе НЕ доказывает обязательность всего live chooser/filter/editor/corpus: ранняя полнота здесь предложена для согласованной реализации/проверок. All bundled basic load/metadata/default/range. Whole ID includes its specified selected/effective/error behavior."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.fonts.asset-validation.result",
+          "description": "Discover and validate every bundled font/tileset/profile; deep corpus includes9x15,9x15tg,16x24tg+16x24sv,12x24/8x16 origin and16x22 partial range. Separate Linux software/accelerated and Windows evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.asset-validation.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.fonts.asset-validation.allocation-checks",
+          "description": "All bundled basic load/metadata/default/range; deep9x15/9x15tg/16x24tg+sv/origin/partial corpus Font/resource disappearance/reappearance, fail before publish, recreate current scene; separate Linux/Windows evidence.",
+          "sources": [
+            "source.behavior.settings-term-force-font-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s881",
+            "source.allocation-b.s882",
+            "source.allocation-b.s883"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    }
+  ],
+  "reviewedObligationCount": 34,
+  "platformPolicy": "Linux required; Windows/MinGW/Wine deferred per docs/agents/platform-validation.md. Canonical rows preserved verbatim."
+}

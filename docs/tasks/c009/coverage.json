@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "stage": "C009",
+  "status": "planned",
+  "snapshotKind": "local-planning-only",
+  "snapshotDate": "2026-11-10",
+  "canonicalSha256": {
+    "stages.json": "e17967e945c425053f8cbe9f4730d5d919fe6fc9598dbf8d694673741b7dcf21",
+    "manifest.json": "68efed03ecade79974e62b9f69a084a47cfa9262952b30b6436a2f2ac5b0b222",
+    "native-coverage.json": "2d7d5ae3e5f5739c93ba512e756f86ba1960dcb9109e5a46b77717e76f103cab",
+    "reconciliation.json": "f44cd0e34c60a291574df42a619ae8f7ea7a5ae58afad3895818700be85743f0"
+  },
+  "reviewedCapabilityCount": 1,
+  "ownedCapabilityIds": [
+    "capability.lua.reload"
+  ],
+  "ticketOwnership": {
+    "capability.lua.reload": "SV-C009-001"
+  },
+  "coverage": [
+    {
+      "capabilityId": "capability.lua.reload",
+      "acceptanceStage": "C009",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-string-exec-lua-1e0a09",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.behavior.settings-receive-file-9b42f3",
+          "source.allocation-b.s868"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Reload scripts at established preference/server-transfer lifecycle and regenerate Guide metadata; failure remains visible without inventing a second interpreter. Full outcome allocation: stage C009. Last FILE_END invokes reopen_lua and guide metadata rebuild during required startup/server transfer; no audio reload implied. In A–F, invoking this outcome's Guide entry displays exactly \"The guide is in development\", performs no Guide content, bookmark, network or update operation, preserves the current interaction state, and returns to the actual caller. This temporary native placeholder is not Guide capability coverage."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.lua.reload.result",
+          "description": "Reload scripts at established preference/server-transfer lifecycle and regenerate Guide metadata; failure remains visible without inventing a second interpreter. In A–F, invoking this outcome's Guide entry displays exactly \"The guide is in development\", performs no Guide content, bookmark, network or update operation, preserves the current interaction state, and returns to the actual caller. This temporary native placeholder is not Guide capability coverage.",
+          "sources": [
+            "source.behavior.settings-string-exec-lua-1e0a09",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-receive-file-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.lua.reload.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-string-exec-lua-1e0a09",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-receive-file-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.lua.reload.allocation-checks",
+          "description": "Last transfer completion reload once; updated guide getters rebuild; failed/missing script visible; updated_audio emits restart warning only, no false fresh audio mapping. In A–F, invoking this outcome's Guide entry displays exactly \"The guide is in development\", performs no Guide content, bookmark, network or update operation, preserves the current interaction state, and returns to the actual caller. This temporary native placeholder is not Guide capability coverage.",
+          "sources": [
+            "source.behavior.settings-string-exec-lua-1e0a09",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-receive-file-9b42f3",
+            "source.allocation-b.s868"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    }
+  ],
+  "reviewedObligationCount": 3,
+  "platformPolicy": "Linux required; Windows/MinGW/Wine deferred per docs/agents/platform-validation.md. Canonical rows preserved verbatim."
+}

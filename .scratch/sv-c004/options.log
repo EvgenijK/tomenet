@@ -1,0 +1,6 @@
+COMMAND: ['clang', '-std=c99', '-Wall', '-Wextra', '-Werror', '-fsanitize=address,undefined', '-Isrc/client/sv', 'tests/sv/settings-options.c', 'src/client/sv/settings/options.c', 'src/client/sv/settings/preferences.c', 'src/client/sv/files/files.c', 'src/client/sv/protocol/login.c', '-o', '.scratch/sv-c004/settings-options'] cwd=.
+
+exit=0
+COMMAND: ASAN_OPTIONS=detect_leaks=0 .scratch/sv-c004/settings-options
+settings options: layers, aliases, PRF core/effects/includes and versioned wire PASS
+exit=0

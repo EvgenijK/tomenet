@@ -1,0 +1,19 @@
+{
+  "src/client/sv/ui/font.h": "27a28d5b536d2562f9809be572bb081b7fd10fbf6cc827af7b22e4f829b1f498",
+  "src/client/sv/ui/font.c": "b9fdbcac053891d230e89ec22780801b53ee8cfe477f16bcf7d4daaec2e07b1c",
+  "src/client/sv/ui/font-editor.h": "dacc74bf2110370cfd992bd99a1be90a72116bc875415727756b14da7f6de088",
+  "src/client/sv/ui/font-selection.c": "7fe1c8fcbfc47e2c76fb728e18e15698ea872c665d57363e6a4aa2f3de736c51",
+  "src/client/sv/ui/font-editor.c": "fd9138592f6d18a424b0ea398ca1ba4fa0a37285291e3f06f77c635ecb541afb",
+  "src/client/sv/ui/font-selection.h": "4d7934180e64dce622e6d7d83794f872b88df12991b7c2bb9f2f3a581203a0ee",
+  "src/client/sv/ui/resource-preparation.h": "9dff5d5e541cd17ff083d87b2dcfb0a935a2c78f9519f1307d2cad1c687fb0ca",
+  "src/client/sv/ui/resource-preparation.c": "9dac5a42867a4bd30e5a415f56f471e74ee2bb062313cf9b5a00b082d66e01af",
+  "src/client/sv/settings/map-font.h": "5e74ee7d2c69961a2ce7d8015f51818d830832631687c4bad1c9071542e4597c",
+  "src/client/sv/settings/map-font.c": "971f5e02be0447680cb50c6988d18612dd450e7862eb0aa2c78af4c8f9b9222d",
+  "src/client/sv/settings/config-save.c": "a5b3639425e7a68ff1c851c9b5244266857a949014e9c7e99b9bdbb1c3840601",
+  "src/client/sv/settings/preferences.c": "9a7af81530f75c2b650d06c1b9fe1bec0b148b9f4a67296095108ad531bdf5f2",
+  "src/client/sv/protocol/visuals.h": "bba35bbeb59313e5141f8bdbfc07ab16053fe58fe8558680d1cad85855a6c2b0",
+  "src/client/sv/protocol/login.c": "efb2b4ae468c4469791e1a6a965f2b30275294c7897b31403c5e2c3c96b832f2",
+  "src/client/sv/login/native-run.c": "dd0cc6025e68b76abfddfffb3fabd3dc6d74b79f9d0e6b2718f6d0b6363fe17c",
+  "src/client/sv/login/flow.c": "a2d0a3bb8d4960bb82f1578e2980f4ef796081adad066db2e91739027b00607a",
+  "src/tomenet-sv": "667a106f22f2d6f69c9a0bbf0c671dbbea6c9323ae18d9ff586d7360fbaaef44"
+}

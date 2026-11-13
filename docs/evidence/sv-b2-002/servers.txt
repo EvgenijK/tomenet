@@ -1,0 +1,3 @@
+europe.tomenet.eu 18348 Europe
+na.tomenet.eu 18348 North America
+apac.tomenet.eu 18348 Asia-Pacific

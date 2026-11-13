@@ -1,0 +1,12 @@
+{
+  "src/client/sv/app.c": "85856227627aff167abe4d7c861ead92507026cc76d4dc1cd86d6216bde6b907",
+  "src/client/sv/app.h": "cb65b937afd7a0f7ec9dd04d0bab371962cb01203459fe61e4e1a803b3674462",
+  "src/client/sv/input/input.c": "2c0a0b269afa983b13f454c4fd3fcdde008da169855ba46f2a19823d11faef07",
+  "src/client/sv/input/input.h": "a31108f2828837040a5f1ac994f482270cbcf5e1c3ff22bc6c0e7c8cd7578bd8",
+  "src/client/sv/input/text-field.c": "4c64877551ccdd59e8deb82a5c696d70b9cdbecccf690565f1125c284fe143b3",
+  "src/client/sv/input/text-field.h": "560996be6da13e5facaf56f7ca51ea1d368cecfe638ea79f363a554f95d52af0",
+  "src/client/sv/settings/preferences.c": "0fbf12568dc2b374fb7e584df121b149a2081fe49566e90b3295da4f836db6f0",
+  "src/client/sv/settings/preferences.h": "02c878b6a60ebae9f4b2b4263de03dd62a74bb1bfc57dc57cb2dca76910cb4a8",
+  "src/makefile.sv": "5b396862f98a6b52a235bef5e608681e5bcfd85ecb168a50d96bb0650da5a72b",
+  "tests/sv/requests.c": "79bede8db2696c0618166592f6e06b4c88854e9fe8fd67f75df15bba4af5b47d"
+}

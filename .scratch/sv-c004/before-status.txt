@@ -1,0 +1,123 @@
+ M docs/sv-architecture.md
+ M docs/sv-functional-stage-plan.md
+ M docs/sv-improvements.md
+ M src/client/sv/app.c
+ M src/client/sv/app.h
+ M src/client/sv/login/characters/login-interaction.c
+ M src/client/sv/login/characters/login-interaction.h
+ M src/client/sv/login/flow-internal.h
+ M src/client/sv/login/flow.c
+ M src/client/sv/login/native-run.c
+ M src/client/sv/login/options.h
+ M src/client/sv/login/ui/endpoint-scene.c
+ M src/client/sv/login/ui/login-shell.c
+ M src/client/sv/login/ui/native-endpoint.c
+ M src/client/sv/login/ui/options.h
+ M src/client/sv/protocol/login.c
+ M src/client/sv/protocol/login.h
+ M src/client/sv/protocol/protocol.c
+ M src/client/sv/protocol/protocol.h
+ M src/client/sv/ui/font.c
+ M src/client/sv/ui/font.h
+ M src/makefile.sv
+ M tests/sv/birth-complete.c
+ M tests/sv/contact-control.c
+ M tests/sv/diagnostics/launcher.c
+ M tests/sv/first-session.c
+ M tests/sv/login-interaction.c
+ M tests/sv/login.c
+ M tests/sv/messages.c
+ M tests/sv_account_create_checks.py
+ M tests/sv_account_failure_checks.py
+ M tests/sv_birth_complete_checks.py
+ M tests/sv_birth_dedicated_checks.py
+ M tests/sv_birth_reply_checks.py
+ M tests/sv_birth_single_submission_checks.py
+ M tests/sv_endpoint_checks.py
+ M tests/sv_first_session_checks.py
+ M tests/sv_guide_motd_checks.py
+ M tests/sv_login_checks.py
+ M tests/sv_message_checks.py
+ M tests/sv_name_editor_submit_checks.py
+ M tests/sv_name_rejection_recovery_checks.py
+ M tests/sv_ordinary_create_cancel_checks.py
+?? .agents/
+?? .codex/
+?? .scratch/b2-body-sex/
+?? .scratch/b2-stats-mode/
+?? .scratch/b2-stats/
+?? .scratch/birth-hotkeys/
+?? .scratch/birth-navigation/
+?? .scratch/character-back/
+?? .scratch/chronicle-refresh/
+?? .scratch/contact-setup/
+?? .scratch/creation-next/
+?? .scratch/credential-focus/
+?? .scratch/credential-producer/
+?? .scratch/login-architecture/birth-body-hotkeys
+?? .scratch/login-architecture/endpoint
+?? .scratch/login-architecture/name-forbidden
+?? .scratch/login-smoke-2026-11-04/01-server-selection.bmp
+?? .scratch/login-smoke-2026-11-04/02-account-login.bmp
+?? .scratch/login-smoke-2026-11-04/03-characters.bmp
+?? .scratch/login-smoke-2026-11-04/04-creation-mode.bmp
+?? .scratch/login-smoke-2026-11-04/05-login-complete.bmp
+?? .scratch/login-smoke-2026-11-04/endpoint
+?? .scratch/login-smoke-2026-11-04/servers.txt
+?? .scratch/pregame-clock/
+?? .scratch/stage-b-linux-2026-10-28/
+?? .scratch/sv-b2-006-corrections/
+?? .scratch/sv-b2-006/
+?? .scratch/sv-b2-account-followup/
+?? .scratch/sv-b2-birth-style/
+?? .scratch/sv-b2-border/
+?? .scratch/sv-b2-class-style/
+?? .scratch/sv-b2-connect-followup/
+?? .scratch/sv-b2-creation-followup/
+?? .scratch/sv-b2-design-followup/
+?? .scratch/sv-b2-editing-followup/
+?? .scratch/sv-b2-input-followup/
+?? .scratch/sv-b2-interactive-bugs/
+?? .scratch/sv-b2-keyboard-followup/
+?? .scratch/sv-b2-manual-escape/
+?? .scratch/sv-b2-name-style/
+?? .scratch/sv-b2-overview-defects/
+?? .scratch/sv-b2-overview-detail/
+?? .scratch/sv-b2-overview-followup/
+?? .scratch/sv-b2-overview-style/
+?? .scratch/sv-b2-race-trait-followup/
+?? .scratch/sv-b2-race-trait-style/
+?? .scratch/sv-b2-server-details/
+?? .scratch/sv-b2-summary-followup/
+?? .scratch/sv-c002/
+?? .scratch/sv-c003/
+?? .scratch/sv-c004/
+?? .scratch/sv-overview-context-read.txt
+?? docs/sv-c002-evidence.md
+?? docs/sv-c003-evidence.md
+?? docs/sv-stage-c002-acceptance.md
+?? docs/sv-stage-c002-spec.md
+?? docs/sv-stage-c003-acceptance.md
+?? docs/sv-stage-c003-spec.md
+?? docs/sv-stage-c004-spec.md
+?? docs/tasks/c002/
+?? docs/tasks/c003/
+?? docs/tasks/c004/
+?? docs/tasks/c006/
+?? docs/tasks/c007/
+?? docs/tasks/c014/
+?? docs/tasks/c016/
+?? docs/tasks/c028/
+?? docs/tasks/c029/
+?? docs/tasks/c032/
+?? docs/tasks/c061/
+?? docs/tasks/verification/c003-deferred-integration.md
+?? src/client/sv/files/
+?? src/client/sv/login/ui/scale.h
+?? src/client/sv/protocol/resource-report.h
+?? src/client/sv/settings/
+?? tests/sv/files.c
+?? tests/sv/settings-audio.c
+?? tests/sv/settings-config.c
+?? tests/sv/settings-options.c
+?? tests/sv/settings-startup.c

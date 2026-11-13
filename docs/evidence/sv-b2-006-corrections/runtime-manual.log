@@ -1,0 +1,36 @@
+[
+  {
+    "label": "software-1440x900-scale1",
+    "command": [
+      "/tmp/sv-b2-006-corrections-final",
+      "--endpoint",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-006-corrections/servers-five.txt",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-corrections-j_arqs1w",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "input": "actual XTest Direct then Cancel exits endpoint",
+    "returncode": 0
+  },
+  {
+    "label": "opengl-1024x768-scale1.5",
+    "command": [
+      "/tmp/sv-b2-006-corrections-final",
+      "--endpoint",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-006-corrections/servers-five.txt",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-corrections-o4bsnlmi",
+      "--fixture-window",
+      "1024x768"
+    ],
+    "input": "actual XTest Direct then Cancel exits endpoint",
+    "returncode": 0
+  }
+]

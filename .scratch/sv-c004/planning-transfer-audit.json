@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-09",
+  "scope": "documentation-only planning transfer",
+  "C004": "accepted",
+  "tickets": [
+    "SV-C004-001",
+    "SV-C004-002",
+    "SV-C004-003",
+    "SV-C004-004"
+  ],
+  "laterStageCount": 18,
+  "laterStageReadmes": [
+    "docs/tasks/c005/README.md",
+    "docs/tasks/c006/README.md",
+    "docs/tasks/c007/README.md",
+    "docs/tasks/c011/README.md",
+    "docs/tasks/c014/README.md",
+    "docs/tasks/c016/README.md",
+    "docs/tasks/c044/README.md",
+    "docs/tasks/c045/README.md",
+    "docs/tasks/c046/README.md",
+    "docs/tasks/c047/README.md",
+    "docs/tasks/c048/README.md",
+    "docs/tasks/c049/README.md",
+    "docs/tasks/c050/README.md",
+    "docs/tasks/c051/README.md",
+    "docs/tasks/c052/README.md",
+    "docs/tasks/c053/README.md",
+    "docs/tasks/c054/README.md",
+    "docs/tasks/c055/README.md"
+  ],
+  "integrationTickets": [
+    "docs/tasks/c005/SV-C005-001-preference-keymaps.md",
+    "docs/tasks/c006/SV-C006-002-map-preferences-integration.md",
+    "docs/tasks/c007/SV-C007-002-graphics-preferences-integration.md",
+    "docs/tasks/c011/SV-C011-001-preference-adoption.md",
+    "docs/tasks/c014/SV-C014-002-preference-lifecycle.md",
+    "docs/tasks/c016/SV-C016-002-preference-messages.md",
+    "docs/tasks/c044/SV-C044-001-explicit-preference-load.md",
+    "docs/tasks/c051/SV-C051-001-preference-import-groups.md",
+    "docs/tasks/c052/SV-C052-001-preference-orchestration.md",
+    "docs/tasks/c053/SV-C053-001-preference-runtime.md",
+    "docs/tasks/c054/SV-C054-001-stateful-preference-ui.md"
+  ],
+  "canonicalRowsPreserved": 3,
+  "canonicalObligationsPreserved": 9,
+  "canonicalSourceHashesVerified": true,
+  "sourceBinaryHashesVerified": true,
+  "localLinksAndAnchors": "pass",
+  "backwardDependencies": "reviewed; late combined flows belong to late owner",
+  "runtimeChecksRun": false
+}

@@ -1,0 +1,12 @@
+{
+  "server_initial": true,
+  "doubleclick_account": true,
+  "revealed": true,
+  "back_window_alive": true,
+  "back_server": true,
+  "other_account": true,
+  "secret_cleared": true,
+  "reveal_reset": true,
+  "escape_returns_alive": true,
+  "errors": []
+}

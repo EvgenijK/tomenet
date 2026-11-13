@@ -1,0 +1,616 @@
+{
+  "prototype_root": "/home/svechnik/Projects/github_site/tomenet_interface",
+  "source_files_sha256": {
+    "index.html": "5a6616906da9072561044afe251c32fc0f161002fa61b21b11b73fce63cbbc9c",
+    "js/data/game-data.js": "45d9bc2794cb7f7341ba940e22052389ecfa786f31f91fe3d5d0943db1a7d1b6",
+    "css/hud.css": "76c1c916d0b12964093db3ae986f0589a595da11ef458a8c0ab97e9da52dfe63",
+    "css/shortcuts.css": "562782e9323cbe3119438a86853cf20f45c334363b7663f2dcdf2644957eea04"
+  },
+  "vector_format": "svg-stroke-commands-v1",
+  "icons": [
+    {
+      "name": "ATTR_STRENGTH",
+      "file": "attr-strength.svg",
+      "source": "index.html",
+      "selector": ".stat-icon.strength-icon svg",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "fb28adb6aaf73a63ddb2aacfc4eb6518b2cce6c3a40bdc8ccf2d7e73fa2cc4b4",
+      "snapshot_sha256": "a90a146a6ad06b2a21916ac8dafb2319e2979fdd38b7b4d4d894f543695158d0"
+    },
+    {
+      "name": "ATTR_INTELLIGENCE",
+      "file": "attr-intelligence.svg",
+      "source": "index.html",
+      "selector": ".stat-icon.intelligence-icon svg",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "3837294233f7cc0b9eeeb869d4addc9bfc4ee945b52b009c74590ec94cc6d0d3",
+      "snapshot_sha256": "ad4d1e44545d0abb7e82c27c95cc8b078d17d1805aef7378a0b12d91d5472206"
+    },
+    {
+      "name": "ATTR_WISDOM",
+      "file": "attr-wisdom.svg",
+      "source": "index.html",
+      "selector": ".stat-icon.wisdom-icon svg",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "3d86b3b7abd1721c10d4fc19cf217589c04b24032b06b0f3d75af62e9225fd03",
+      "snapshot_sha256": "ffa6d2ddad4415d8d6b742eabd28835cbf5f52efacbecd5205ad38f31947500f"
+    },
+    {
+      "name": "ATTR_DEXTERITY",
+      "file": "attr-dexterity.svg",
+      "source": "index.html",
+      "selector": ".stat-icon.dexterity-icon svg",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "4de3e60827e423222d529c620595627ef2ae9cf42d15eaf03110998b5b0bb9ea",
+      "snapshot_sha256": "410895abe88f2238348000dfc57695df4c4034c24343fdc0011940cf9f8121a5"
+    },
+    {
+      "name": "ATTR_CONSTITUTION",
+      "file": "attr-constitution.svg",
+      "source": "index.html",
+      "selector": ".stat-icon.constitution-icon svg",
+      "stroke_width": "1.35",
+      "source_svg_sha256": "825317836bc312e6f65878526511354eb049e0a5ea4df6ec8e2595c73a0fd121",
+      "snapshot_sha256": "9acecff5535021cd7c1af41f4b07a675ac55dad3dd6d7de62771d676b7d5d57d"
+    },
+    {
+      "name": "ATTR_CHARISMA",
+      "file": "attr-charisma.svg",
+      "source": "index.html",
+      "selector": ".stat-icon.charisma-icon svg",
+      "stroke_width": "1.25",
+      "source_svg_sha256": "f1d061b00d76715f2fa970300b26cb04dc97c8dc00c8723760ef35c3559b9c7e",
+      "snapshot_sha256": "11a4cdb1abe750d0491b06c49a9711ca932ddb22736e86bfc06ed317a97e98e7"
+    },
+    {
+      "name": "SANITY",
+      "file": "sanity.svg",
+      "source": "index.html",
+      "selector": ".line-icon.sanity-icon svg",
+      "stroke_width": "1.4",
+      "source_svg_sha256": "9f4d53e8b7bc4221d3a767ac6b169a3aec844f9f09795a810dee574f07d4c763",
+      "snapshot_sha256": "afd00cfe121bfaf6baf90b3fc1753eed30c979831cbb4baa6542204515eea175"
+    },
+    {
+      "name": "ARMOUR",
+      "file": "armour.svg",
+      "source": "index.html",
+      "selector": ".line-icon.shield-icon svg",
+      "stroke_width": "1.4",
+      "source_svg_sha256": "72220c48b2b5c2ee4883e4cc6eb5123d9e91ccc88422f850c1c68de20ad00f0c",
+      "snapshot_sha256": "6d8ca30a457c432b8e467eec7b7371ecbd7744fe6dbf2f7bf62a92c506fab374"
+    },
+    {
+      "name": "CHARACTER",
+      "file": "character.svg",
+      "source": "index.html",
+      "selector": "#characterShortcut svg",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "faf8770ac768793757ed9914cdf1d474b96887c5ffc5573c8bf04439cf8491bf",
+      "snapshot_sha256": "6a6d3d6fc4885f83b0d92b6f06deea8d380f88868a3c6b89a05c47b2372513db"
+    },
+    {
+      "name": "ENC_EASY_WIELD",
+      "file": "enc-easy-wield.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.easy_wield.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "d34a1f3c593902e83fd870a4fa91335336a221853c7aa6dfd659f94712d6e0c3",
+      "snapshot_sha256": "28d880cf2e089dbc53bce3e71c5b0d60fb68bb89c493af98174f5ac842fb3f98"
+    },
+    {
+      "name": "ENC_HEAVY_WIELD",
+      "file": "enc-heavy-wield.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.heavy_wield.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "a3d90d1f333e6814094be88beef4fcaed0c57e5ea0253616ca997738ec0e52ea",
+      "snapshot_sha256": "b82a5177fcd182bb98f73a297260f2e7524781734fe478b32927a6584de7cffa"
+    },
+    {
+      "name": "ENC_AWKWARD_WIELD",
+      "file": "enc-awkward-wield.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.awkward_wield.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "520b50d8e41a2c5cabf02abbc2f3a83c70c2c87d3538c70df6b0df63d8ee1d33",
+      "snapshot_sha256": "34fddccd9b947d9fd4f86b3c15daf476574eb6b12cff1f64fec7d3d72eb74eda"
+    },
+    {
+      "name": "ENC_ICKY_WIELD",
+      "file": "enc-icky-wield.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.icky_wield.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "16497fc6c7f1574152646dac1068c816d3db78c1668e478b1d9b03dfe1e3cc5e",
+      "snapshot_sha256": "09bad0e7119c1adfe9ba105e1b430ae314673e802fdbf05577ac8bdb7b8d2c41"
+    },
+    {
+      "name": "ENC_HEAVY_TOOL",
+      "file": "enc-heavy-tool.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.heavy_tool.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "f31cba86faf6ddc3bc1ff29b6fe32de6521a6e11d8fac22f09196ba3fa99f458",
+      "snapshot_sha256": "6b255e6124c38ba6abf0092b14d5a20a20fddffa7ead132ff5cdad4e1380aa4a"
+    },
+    {
+      "name": "ENC_HEAVY_SHIELD",
+      "file": "enc-heavy-shield.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.heavy_shield.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "0453d3193c1106c91b2a2ca5e219e3ccb10361698eb32c3f1bf0e62942236f97",
+      "snapshot_sha256": "47eaef35432bbb6ebc8b5ff7802eb923d6fc607f0389b2670ab87214bfbf2148"
+    },
+    {
+      "name": "ENC_HEAVY_SHOOT",
+      "file": "enc-heavy-shoot.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.heavy_shoot.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "ec2719d2f6218f53d6d376e30ae8875695e855773574d2685df0a5c9c53b9213",
+      "snapshot_sha256": "1eb8dc7df192dfb8f67b73590c48aa1920b6f53e1beccc1fda0f8dc4aab367dc"
+    },
+    {
+      "name": "ENC_AWKWARD_SHOOT",
+      "file": "enc-awkward-shoot.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.awkward_shoot.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "811cc7ea54590b85e4740a92a45653db94a21308cc165ce592a30a36a2a02004",
+      "snapshot_sha256": "f9f25ff66d84292f464720c04aac9e9f33d54f19a88ca55065bf48c0438fb06e"
+    },
+    {
+      "name": "ENC_CUMBER_ARMOR",
+      "file": "enc-cumber-armor.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.cumber_armor.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "164988bf575b13c291718ccc7955562c322e1ced45fcd07b0b19bb21c71da1d0",
+      "snapshot_sha256": "f07952d8d23affdc48e1c1d317b729c3fa1268975f30a968737f8da4eb0a26b1"
+    },
+    {
+      "name": "ENC_MONK_HEAVYARMOR",
+      "file": "enc-monk-heavyarmor.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.monk_heavyarmor.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "5886874d53063cd06d5cfb18097030c96706631db2e2cfacd4884a5735cc4fda",
+      "snapshot_sha256": "23f5b5fcc3951e893b8ce7782d90cf78c98c781d845abb9d2c6269470980ba98"
+    },
+    {
+      "name": "ENC_CUMBER_WEIGHT",
+      "file": "enc-cumber-weight.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.cumber_weight.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "7575d6855dc088013bf5f40e15faf2b76b4113d6ae1fb636717969dfcefce7cf",
+      "snapshot_sha256": "fdb74d13be85093ecb4d41ac07b8506b53fc8c9763aff6f8807deadf3e2b3510"
+    },
+    {
+      "name": "ENC_ROGUE_HEAVYARMOR",
+      "file": "enc-rogue-heavyarmor.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.rogue_heavyarmor.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "faa0571492a5fc128576576d57e6f9e7a92fca3746f3194f15aea1b507b5d6d8",
+      "snapshot_sha256": "7152924cfc3b8f21d4cf55a79cebb22f42b8d963d3c2c98ca26eef82df67485d"
+    },
+    {
+      "name": "ENC_AWKWARD_ARMOR",
+      "file": "enc-awkward-armor.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.awkward_armor.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "71de695e98c489a0bce1ea772017e5e5fc2d921f5e4b2b97f6bd113a68a56390",
+      "snapshot_sha256": "ee7950da296304ae327eb5ade3196152c136878818abae94af1812a5ed7a3dd6"
+    },
+    {
+      "name": "ENC_CUMBER_GLOVE",
+      "file": "enc-cumber-glove.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.cumber_glove.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "dcf6bbfae1a5a0b22567a89059c2a7f9f10e565e9a968ca8d554b125b2d0fdf6",
+      "snapshot_sha256": "5efe919b19eb49ecb1c8151c03a0c77e57c2783e66b0416b0aa08f7ccc0abbfa"
+    },
+    {
+      "name": "ENC_HEAVY_SWIM",
+      "file": "enc-heavy-swim.svg",
+      "source": "js/data/game-data.js",
+      "selector": "ENCUMBRANCE_STATUSES.heavy_swim.icon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "069c8c09c007303dcb5af817fa69e7d18378c7420f730289b5ca1860e2b7bfca",
+      "snapshot_sha256": "fce9993b3c748084044256ed9474b133a444ceef2a306f604b139cf0ac284661"
+    },
+    {
+      "name": "STATUS_SPEED",
+      "file": "status-speed.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.speed",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "80c2b1758a22bb919d18e9d2a62ce30d8d59a4e4a576a3d36ddb4caf052ca331",
+      "snapshot_sha256": "75e42d53178958b197a414f5f1da21590750362808682ef20308bae0845b38bd"
+    },
+    {
+      "name": "STATUS_BPR",
+      "file": "status-bpr.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.bpr",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "5e1b42b4abd7af5d19e58d286f80c847e5985d3ab7a591594c658347ec9aee1d",
+      "snapshot_sha256": "c4300a124a0265c2071828b493a49f8abf3e8932a6acd79f429cf3b29ef234e9"
+    },
+    {
+      "name": "STATUS_FIRE",
+      "file": "status-fire.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.fire",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "227cf82e9705049696717884540332ef03d64361c9ddbfdc77bf3042b76fb606",
+      "snapshot_sha256": "118325abc26afeb3226640df7ad5898a89ec10f861657a87a0d21b8bc3927730"
+    },
+    {
+      "name": "STATUS_COLD",
+      "file": "status-cold.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.cold",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "9e611b4e1cfe4048b588836b58ca6e7af7c313a4d76feabae4655f539addae4d",
+      "snapshot_sha256": "b423856eda7fe73bbe2056666f4656fa12d4c3ed955e33b5a97f0108055e740e"
+    },
+    {
+      "name": "STATUS_ELEC",
+      "file": "status-elec.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.elec",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "b2824dd0e2d6d84a9c4d622b17d066434f18da5ba803dd6af32633f7b6dcfc4a",
+      "snapshot_sha256": "9ed5865c6d4ab3705f085dcf9e01449edc5afef4dd5ede0feb8214f3689d17c8"
+    },
+    {
+      "name": "STATUS_ACID",
+      "file": "status-acid.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.acid",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "698edb897db318b3a4caf73c9f8584f1b7775271715a48de70e8cb5c897d67e0",
+      "snapshot_sha256": "8f1965e388d4417d60cf7a13d4c63e7a4a6818c0562c01fc2bda42b7f69addc4"
+    },
+    {
+      "name": "STATUS_POISON",
+      "file": "status-poison.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.poison",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "d49f6c2af0d418cb96492c9041ba4f39c1d7af005247e5e06910481e1684e84b",
+      "snapshot_sha256": "dd85aeadd4542c5dc5aeb968351cbcb58dce18503a7708d44570c2b0d47c5a30"
+    },
+    {
+      "name": "STATUS_MANA",
+      "file": "status-mana.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.mana",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "74e75a91fc1bd6002fdcfede8187e1c02b0f0468dbf54476e2c8452f1c32ea00",
+      "snapshot_sha256": "7d07479049e6dafb35dbb3c28fc4245f6e38f05d7280edb56e362ff08dcc1421"
+    },
+    {
+      "name": "STATUS_ESP",
+      "file": "status-esp.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.esp",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "20bb36956c3cb6fec1aa768cf1836885183c28a72ec1ec990c36ec90b26e22ce",
+      "snapshot_sha256": "8c9cd4349fd079152934126f3ebf3c8eabd83a5f0d2260e39783347dd91355c6"
+    },
+    {
+      "name": "STATUS_BRAND",
+      "file": "status-brand.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.brand",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "66de86635d3d914bd62caaf97a7b17f3852a53166b22663764491b1ac3583231",
+      "snapshot_sha256": "a3877425cceb18475a8a4d6f2dc85cc1f32da982f83b1737fd8f6f5be64b8f58"
+    },
+    {
+      "name": "STATUS_REGEN",
+      "file": "status-regen.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.regen",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "a04f8a98c017890cb176567b7875a60e94c94da2ddbda8396a716f5dcbadfb8a",
+      "snapshot_sha256": "3f6f4b6e942eaba0f9cf3e4f0b4fff6572498dd3c7eb24ce8ce06a393237c0ff"
+    },
+    {
+      "name": "STATUS_DISPERSION",
+      "file": "status-dispersion.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.dispersion",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "c5029cca6a8e0b6fff257d443c648ce1709613754043f28abba26f141ac626f1",
+      "snapshot_sha256": "77f97cb47ed655c7192a3152c84e93b0623e99485ef2f109c84d1f34101da5d1"
+    },
+    {
+      "name": "STATUS_CHARM",
+      "file": "status-charm.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.charm",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "52d017bc56c4edf764c0b25600e6aafc2996ab13b310f6ce4e86a7e1fd2c0277",
+      "snapshot_sha256": "8989448ccb12cbf046bf3fe85e2dcddcb2a33126d5fc4c8c94a5b61645db675d"
+    },
+    {
+      "name": "STATUS_THUNDER",
+      "file": "status-thunder.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.thunder",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "43b1995df24eb6be022f499b9379d7227aa3719fbb85ee09fc29051f9b13a1e0",
+      "snapshot_sha256": "22a4e510b346f70a3111c52ec79b44ad6a3a5d52822fa018b376ca2d4bda8c22"
+    },
+    {
+      "name": "STATUS_PFE",
+      "file": "status-pfe.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.pfe",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "cb8c36fd86a95f6cf0c7519a5e5dd3b8e8a116205315d4736a4ce3dd0c3b9155",
+      "snapshot_sha256": "2d1b35c903daa07df099d04b46d20068e27e93123fc163824a2828942d9a3183"
+    },
+    {
+      "name": "STATUS_CRIT",
+      "file": "status-crit.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.crit",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "ff143f14f59f29ebd39d51654c2b751399877741e914bdd9989b0b62bef675c1",
+      "snapshot_sha256": "f2602e3a2213d5b1c26b96e18ea76ffae87aa4b06ef70295df5d4dec2e13ef41"
+    },
+    {
+      "name": "STATUS_SHIELD",
+      "file": "status-shield.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.shield",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "614ea0d4a5afcf9ac020a72ba1bf825dd1f9d95157ed63e25f5f207aef5dfb96",
+      "snapshot_sha256": "fd27b3a9c3cc9621ee6cb24d24e8862e938570d7c32afb78a73674bf4337a665"
+    },
+    {
+      "name": "STATUS_MUSHROOM",
+      "file": "status-mushroom.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.mushroom",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "fc13f901fbe3b9e5874a8df9fc54d78c225a2e613da72fa0136ba2585003074f",
+      "snapshot_sha256": "8cd383bebf532eb6f36da37865f1bb363788264a95fc17b151c48bbca54d5e7f"
+    },
+    {
+      "name": "STATUS_FOOD",
+      "file": "status-food.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.food",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "66abf7f2a605b3faa881fa216c9186302b387e1c8865995303b2ce306a3ff5f5",
+      "snapshot_sha256": "132e35c392849f4ca850f8e115931626669d2f4a20ea71b9dadb5b3982f65cc5"
+    },
+    {
+      "name": "STATUS_BLIND",
+      "file": "status-blind.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.blind",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "c24351768bc491774c2451c4e16b590fab363d1a9d455f4c8f17cfc7e103d04f",
+      "snapshot_sha256": "f6fe9cda8687098fe320d63adc9196ca7f82a71b5f64e993aa88aeb78538de50"
+    },
+    {
+      "name": "STATUS_HALLU",
+      "file": "status-hallu.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.hallu",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "ec6d8adae807b35dc2219308811ef7f902f2cd1235a00ab2cce3ceaf9969be4d",
+      "snapshot_sha256": "2706a5afb6b2dfe547147300a5563b50dea83e081eda56e7e99e74b1f3bba9bb"
+    },
+    {
+      "name": "STATUS_CONFUSED",
+      "file": "status-confused.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.confused",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "3fd36bf8aee9d1df78e268b3c1a3b7b690c6d21152e5ce8d0a9c9ba6a215da3f",
+      "snapshot_sha256": "080ecdfbc4c3c292475a5078ef35b4e825a5468bab38ac7248e26bf86ef19f1b"
+    },
+    {
+      "name": "STATUS_FEAR",
+      "file": "status-fear.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.fear",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "f4a232ca3b83ed831305a508af8d9c6829fe424e3d565a789e2afe155fe7f6ff",
+      "snapshot_sha256": "563570861d240a42a701279396c9d371bb2e8595bb96d97d65e0a7d532412c8a"
+    },
+    {
+      "name": "STATUS_DISEASE",
+      "file": "status-disease.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.disease",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "8cc280ed20afe6c68a2380bdd59397c18343e20ef56c1b8e351cafda5792bc1c",
+      "snapshot_sha256": "c315e53d27fbd27ab322ca7bc59e1620419041f5fbb8d9c1d62b7a901c324ecc"
+    },
+    {
+      "name": "STATUS_SEARCH",
+      "file": "status-search.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.search",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "d0273b4d27c8ed2171dbd3dd4776f6feb94fd7f1ca0d568b5ac66711bbf8c5aa",
+      "snapshot_sha256": "ba22087cf96497869f9fcfbca79cae9fe9d466ec1e0f59f8c529b103269c1987"
+    },
+    {
+      "name": "STATUS_REST",
+      "file": "status-rest.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.rest",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "3802e43cfa2a371d0cef28f608ad3ac562a1e2b0ecea7fe5885a19529f43d35d",
+      "snapshot_sha256": "63e1492073f400931350978e54f83741776280a9130b87bdd01ae6b7d3d564e4"
+    },
+    {
+      "name": "STATUS_PARALYSIS",
+      "file": "status-paralysis.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.paralysis",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "ebd10b4729276e2780d4f6df0e0db45ddf95fb6d950cfc075b3eb865358e6469",
+      "snapshot_sha256": "75ad792ba99ed84d7aa5988eb5afb555ff82587f1c17adf995dfabac350cfe56"
+    },
+    {
+      "name": "STATUS_WOUND",
+      "file": "status-wound.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.wound",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "17c8061e8d0b46576304635badeb8b2634daa5cfb6520b3191627f849b46de52",
+      "snapshot_sha256": "6914fe33aa31825079b686f3bf70032280472093bfc3f84b05563e9aa6ef695a"
+    },
+    {
+      "name": "STATUS_STUN",
+      "file": "status-stun.svg",
+      "source": "js/data/game-data.js",
+      "selector": "STATUS_ICONS.stun",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "8ba08ec2da6c3f001af9801fd19bd13997d271e17c4771658db176190c1ef544",
+      "snapshot_sha256": "b5e73fa64544861fafdd3c27c2149054a40be1c78bd8310c7fffc69db2f43f10"
+    },
+    {
+      "name": "SOURCE_WEAPON",
+      "file": "source-weapon.svg",
+      "source": "js/data/game-data.js",
+      "selector": "CHARACTER_SOURCE_ICONS.weapon",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "57319a9190464d56dbe1956e5d9d912834bae229eb56fdad633bf855e4355591",
+      "snapshot_sha256": "37e6959c7910ac37d820a88e718b25c78257aa29e0d522965e13767faa9edf8a"
+    },
+    {
+      "name": "SOURCE_SHOOTER",
+      "file": "source-shooter.svg",
+      "source": "js/data/game-data.js",
+      "selector": "CHARACTER_SOURCE_ICONS.shooter",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "bb8f5a808cbfa25d4e33dfc8a6193a046ad280a11163a4d8d73554d64023c70b",
+      "snapshot_sha256": "1a7576744edfe9bf1476e37a40acba83d6b5e5db7994efd8d4478bf12dc43eef"
+    },
+    {
+      "name": "SOURCE_RING",
+      "file": "source-ring.svg",
+      "source": "js/data/game-data.js",
+      "selector": "CHARACTER_SOURCE_ICONS.ring",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "0af15e1717f658d921f19e38377678eaf499106942511c7aa5c8b3ba0c3cdf21",
+      "snapshot_sha256": "4255d2adbc679d5bd85bbd2f2d050167fea53d56372cb3b536bb6106d2d414bb"
+    },
+    {
+      "name": "SOURCE_AMULET",
+      "file": "source-amulet.svg",
+      "source": "js/data/game-data.js",
+      "selector": "CHARACTER_SOURCE_ICONS.amulet",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "9af1490581a8d8189b5e32a6c1d32cd94c163f99a94c2e27716f4a39832eccb9",
+      "snapshot_sha256": "f38638c0ef595798a433b0a0dfcbce60df84a0a3a2904b63bc5a14b32e8c8ca8"
+    },
+    {
+      "name": "SOURCE_LIGHT",
+      "file": "source-light.svg",
+      "source": "js/data/game-data.js",
+      "selector": "CHARACTER_SOURCE_ICONS.light",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "0ad175b4a7a35dcebeff4695241754d78c3c9271c26f13fec42742e5c48deaeb",
+      "snapshot_sha256": "bdd2355e3afedd3831efdd4d9962a69b40c0be64897649cebe01992d8b5ca140"
+    },
+    {
+      "name": "SOURCE_BODY",
+      "file": "source-body.svg",
+      "source": "js/data/game-data.js",
+      "selector": "CHARACTER_SOURCE_ICONS.body",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "e0e30c3208a6d188a71056f35af4ef62dc3e9c6a2d486cf191b50df2380e4938",
+      "snapshot_sha256": "6262af3d0e1a8be30300ef5984b74f189f3e822711a275457f5a4f9d38713471"
+    },
+    {
+      "name": "SOURCE_CLOAK",
+      "file": "source-cloak.svg",
+      "source": "js/data/game-data.js",
+      "selector": "CHARACTER_SOURCE_ICONS.cloak",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "6e5788fddf59029d3d0c4b2ccb98044dbdcc4983144a2b3b706fb71a2128ae7a",
+      "snapshot_sha256": "8e1611eac3ecf1c63baa167e031b7ae1bf281a091ebca712ebac49c8fb51f605"
+    },
+    {
+      "name": "SOURCE_SHIELD",
+      "file": "source-shield.svg",
+      "source": "js/data/game-data.js",
+      "selector": "CHARACTER_SOURCE_ICONS.shield",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "dfbf6f194e8f9c7c152d504d5925950d6b2d6928c58dc932fe9e5b6c0144b452",
+      "snapshot_sha256": "f64e2b102944e7c507fd29565401bd105ff65881381d82a39c30ccb0ad26f637"
+    },
+    {
+      "name": "SOURCE_HAT",
+      "file": "source-hat.svg",
+      "source": "js/data/game-data.js",
+      "selector": "CHARACTER_SOURCE_ICONS.hat",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "c1d4fa06360a4e1011043fba020ab4bf0e306b30e0fb04266f8d1e813e805213",
+      "snapshot_sha256": "d04339a9cc521d9fcde9fc0456d97f00fc1df5e69bf4550970af58554246bea5"
+    },
+    {
+      "name": "SOURCE_GLOVES",
+      "file": "source-gloves.svg",
+      "source": "js/data/game-data.js",
+      "selector": "CHARACTER_SOURCE_ICONS.gloves",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "0ef83a042a0df6be607581e3e44e2b5037991bf0145711f219128ba0f3b11797",
+      "snapshot_sha256": "21e98031bdfb641f74e08a3d7b361616ef10f6e748d92a22a5bd850023da0aa7"
+    },
+    {
+      "name": "SOURCE_BOOTS",
+      "file": "source-boots.svg",
+      "source": "js/data/game-data.js",
+      "selector": "CHARACTER_SOURCE_ICONS.boots",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "fa23ee96a3a08b74e95ccd0579b166cc5f2d2155c967b749bc5a2746d423340f",
+      "snapshot_sha256": "37c144c4b40ec71b92ed5f35f5a3f562fab4681efd481d57b38dee83ee7eeeb7"
+    },
+    {
+      "name": "SOURCE_QUIVER",
+      "file": "source-quiver.svg",
+      "source": "js/data/game-data.js",
+      "selector": "CHARACTER_SOURCE_ICONS.quiver",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "e39ad42b39accbff1368865a06fb87b89e4aaa91ca2f0f8fab3b7612fd76e110",
+      "snapshot_sha256": "446bc16d4c08279e10180a596e6912068766962d36124b865f5c9fe72fb500ef"
+    },
+    {
+      "name": "SOURCE_TOOL",
+      "file": "source-tool.svg",
+      "source": "js/data/game-data.js",
+      "selector": "CHARACTER_SOURCE_ICONS.tool",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "1130c42e958641644cde3e38127b865f493aa4dc3f95489cf91c2a7be1119073",
+      "snapshot_sha256": "88a09e4b5d8419774d19f55f10e20d317f9a580b0615c88ebcf6197c2f4d63ba"
+    },
+    {
+      "name": "SOURCE_PLAYER",
+      "file": "source-player.svg",
+      "source": "js/data/game-data.js",
+      "selector": "CHARACTER_SOURCE_ICONS.player",
+      "stroke_width": "1.45",
+      "source_svg_sha256": "b6a03b9f8ba1034f7e0edde517bf5f37a63f2225ea698cf67684c8161d3cffa9",
+      "snapshot_sha256": "ed32dec84f09eec3f1c302a2739f9afb05d45bf222ead7b8acabb7704091a211"
+    }
+  ],
+  "source_generation": "79c1fae16cb9bc97"
+}

@@ -1,0 +1,3 @@
+SV map preferences: font-sv.prf missing; using server glyph identities (zero overrides)
+SV graphics: Graphics candidate could not load or prepare; previous stack retained; startup font-only fallback
+graphics: real base/subset prepare/draw, shared glyph identity, raw extents, atomic failure, off, shipped and wire boundaries PASS

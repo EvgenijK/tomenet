@@ -1,0 +1,23 @@
+[
+  "src/client/sv/settings/options.h",
+  "src/client/sv/settings/options.c",
+  "src/client/sv/login/flow.c",
+  "src/client/sv/login/options.h",
+  "src/client/sv/login/flow-internal.h",
+  "src/client/sv/login/native-run.c",
+  "tests/sv_birth_dedicated_checks.py",
+  "tests/sv_birth_complete_checks.py",
+  "tests/sv_login_checks.py",
+  "tests/sv_ordinary_create_cancel_checks.py",
+  "tests/sv_endpoint_checks.py",
+  "tests/sv_account_failure_checks.py",
+  "tests/sv_guide_motd_checks.py",
+  "tests/sv_name_editor_submit_checks.py",
+  "tests/sv_birth_reply_checks.py",
+  "tests/sv_first_session_checks.py",
+  "tests/sv_birth_single_submission_checks.py",
+  "tests/sv_name_rejection_recovery_checks.py",
+  "tests/sv_account_create_checks.py",
+  "tests/sv/settings-options.c",
+  "src/makefile.sv"
+]

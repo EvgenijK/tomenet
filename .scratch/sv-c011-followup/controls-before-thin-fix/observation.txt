@@ -1,0 +1,17 @@
+2026-11-11, initial failing invocation:
+python3 tests/sv_first_session_checks.py --case c011-controls
+
+Observed tool output from the real failing managed-peer/native run:
+first-session: ../tests/sv/first-session.c:1049: int main(int, char **):
+Assertion `controls_probe.flushes==12 && controls_probe.paced==10 && controls_probe.unpaced==2' failed.
+native controls presents=15 pauses=2 stale=2 ack=2 flush=12 paced=12 unpaced=0
+flush1 frame=1087 due=1088 presented=1087843054 deadline=1088843110
+flush10 frame=1176 due=1177 presented=1176323364 deadline=1177323449
+flush11 frame=1186 due=1187 presented=1186722779 deadline=1187722897
+flush12 frame=1196 due=1197 presented=1197123754 deadline=1198123878
+
+Provenance: this is an excerpt transcribed from the tool output while diagnosing
+that run, not a preserved copy of its raw command.json/transcript. The runner's
+c011-controls paths were subsequently overwritten by later checks. No binary or
+source hash is claimed for this extracted pre-fix observation. Final raw PASS
+artifacts are separate under ../c011-controls/.

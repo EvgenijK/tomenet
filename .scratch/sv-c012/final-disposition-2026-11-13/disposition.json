@@ -1,0 +1,656 @@
+{
+  "date": "2026-11-13",
+  "scope": "technical-core-only; deferred acceptance stays open",
+  "capabilities": 27,
+  "obligations": [
+    {
+      "id": "obligation.status.read-stats.result",
+      "capabilityId": "capability.status.read-stats",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01, DA-02, DA-04",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-stats.lifecycle",
+      "capabilityId": "capability.status.read-stats",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01, DA-02, DA-04",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-stats.allocation-checks",
+      "capabilityId": "capability.status.read-stats",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01, DA-02, DA-04",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-armour.result",
+      "capabilityId": "capability.status.read-armour",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01, DA-02",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-armour.lifecycle",
+      "capabilityId": "capability.status.read-armour",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01, DA-02",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-armour.allocation-checks",
+      "capabilityId": "capability.status.read-armour",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01, DA-02",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-demographics.result",
+      "capabilityId": "capability.status.read-demographics",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01, DA-02",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-demographics.lifecycle",
+      "capabilityId": "capability.status.read-demographics",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01, DA-02",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-demographics.allocation-checks",
+      "capabilityId": "capability.status.read-demographics",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01, DA-02",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-combat-bonuses.result",
+      "capabilityId": "capability.status.read-combat-bonuses",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01, DA-02",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-combat-bonuses.lifecycle",
+      "capabilityId": "capability.status.read-combat-bonuses",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01, DA-02",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-combat-bonuses.allocation-checks",
+      "capabilityId": "capability.status.read-combat-bonuses",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01, DA-02",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-experience.result",
+      "capabilityId": "capability.status.read-experience",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01, DA-02, DA-04",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-experience.lifecycle",
+      "capabilityId": "capability.status.read-experience",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01, DA-02, DA-04",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-experience.allocation-checks",
+      "capabilityId": "capability.status.read-experience",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01, DA-02, DA-04",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-currency.result",
+      "capabilityId": "capability.status.read-currency",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01, DA-07",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-currency.lifecycle",
+      "capabilityId": "capability.status.read-currency",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01, DA-07",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-currency.allocation-checks",
+      "capabilityId": "capability.status.read-currency",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01, DA-07",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-mana.result",
+      "capabilityId": "capability.status.read-mana",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01, DA-04, DA-08",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-mana.lifecycle",
+      "capabilityId": "capability.status.read-mana",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01, DA-04, DA-08",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-mana.allocation-checks",
+      "capabilityId": "capability.status.read-mana",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01, DA-04, DA-08",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-confusion.result",
+      "capabilityId": "capability.status.read-confusion",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-confusion.lifecycle",
+      "capabilityId": "capability.status.read-confusion",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-confusion.allocation-checks",
+      "capabilityId": "capability.status.read-confusion",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-poison.result",
+      "capabilityId": "capability.status.read-poison",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-poison.lifecycle",
+      "capabilityId": "capability.status.read-poison",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-poison.allocation-checks",
+      "capabilityId": "capability.status.read-poison",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-study.result",
+      "capabilityId": "capability.status.read-study",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-05",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-study.lifecycle",
+      "capabilityId": "capability.status.read-study",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-05",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-study.allocation-checks",
+      "capabilityId": "capability.status.read-study",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-05",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-blows.result",
+      "capabilityId": "capability.status.read-blows",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-blows.lifecycle",
+      "capabilityId": "capability.status.read-blows",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-blows.allocation-checks",
+      "capabilityId": "capability.status.read-blows",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-food.result",
+      "capabilityId": "capability.status.read-food",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-food.lifecycle",
+      "capabilityId": "capability.status.read-food",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-food.allocation-checks",
+      "capabilityId": "capability.status.read-food",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-fear.result",
+      "capabilityId": "capability.status.read-fear",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-fear.lifecycle",
+      "capabilityId": "capability.status.read-fear",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-fear.allocation-checks",
+      "capabilityId": "capability.status.read-fear",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-speed.result",
+      "capabilityId": "capability.status.read-speed",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-speed.lifecycle",
+      "capabilityId": "capability.status.read-speed",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-speed.allocation-checks",
+      "capabilityId": "capability.status.read-speed",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-cut.result",
+      "capabilityId": "capability.status.read-cut",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-cut.lifecycle",
+      "capabilityId": "capability.status.read-cut",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-cut.allocation-checks",
+      "capabilityId": "capability.status.read-cut",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-blind-hallucination.result",
+      "capabilityId": "capability.status.read-blind-hallucination",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-blind-hallucination.lifecycle",
+      "capabilityId": "capability.status.read-blind-hallucination",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-blind-hallucination.allocation-checks",
+      "capabilityId": "capability.status.read-blind-hallucination",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-stun.result",
+      "capabilityId": "capability.status.read-stun",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-stun.lifecycle",
+      "capabilityId": "capability.status.read-stun",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-stun.allocation-checks",
+      "capabilityId": "capability.status.read-stun",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-monster-health.result",
+      "capabilityId": "capability.status.read-monster-health",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-monster-health.lifecycle",
+      "capabilityId": "capability.status.read-monster-health",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-monster-health.allocation-checks",
+      "capabilityId": "capability.status.read-monster-health",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-sanity.result",
+      "capabilityId": "capability.status.read-sanity",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01, DA-04, DA-08",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-sanity.lifecycle",
+      "capabilityId": "capability.status.read-sanity",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01, DA-04, DA-08",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-sanity.allocation-checks",
+      "capabilityId": "capability.status.read-sanity",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01, DA-04, DA-08",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-afk.result",
+      "capabilityId": "capability.status.read-afk",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01, DA-06",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-afk.lifecycle",
+      "capabilityId": "capability.status.read-afk",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01, DA-06",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-afk.allocation-checks",
+      "capabilityId": "capability.status.read-afk",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01, DA-06",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-encumbrance.result",
+      "capabilityId": "capability.status.read-encumbrance",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-encumbrance.lifecycle",
+      "capabilityId": "capability.status.read-encumbrance",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-encumbrance.allocation-checks",
+      "capabilityId": "capability.status.read-encumbrance",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-stamina.result",
+      "capabilityId": "capability.status.read-stamina",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01, DA-04",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-stamina.lifecycle",
+      "capabilityId": "capability.status.read-stamina",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01, DA-04",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-stamina.allocation-checks",
+      "capabilityId": "capability.status.read-stamina",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01, DA-04",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-extra.result",
+      "capabilityId": "capability.status.read-extra",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01, DA-06",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-extra.lifecycle",
+      "capabilityId": "capability.status.read-extra",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01, DA-06",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-extra.allocation-checks",
+      "capabilityId": "capability.status.read-extra",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01, DA-06",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-martyr.result",
+      "capabilityId": "capability.status.read-martyr",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-09",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-martyr.lifecycle",
+      "capabilityId": "capability.status.read-martyr",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-09",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-martyr.allocation-checks",
+      "capabilityId": "capability.status.read-martyr",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-09",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-idle.result",
+      "capabilityId": "capability.status.read-idle",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-09, DA-10",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-idle.lifecycle",
+      "capabilityId": "capability.status.read-idle",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-09, DA-10",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-idle.allocation-checks",
+      "capabilityId": "capability.status.read-idle",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-09, DA-10",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-indicators.result",
+      "capabilityId": "capability.status.read-indicators",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01, DA-06",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-indicators.lifecycle",
+      "capabilityId": "capability.status.read-indicators",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01, DA-06",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-indicators.allocation-checks",
+      "capabilityId": "capability.status.read-indicators",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01, DA-06",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-live-hp.result",
+      "capabilityId": "capability.status.read-live-hp",
+      "core": "checked-scoped",
+      "evidenceClass": "R",
+      "remaining": "DA-01, DA-04, DA-08",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-live-hp.lifecycle",
+      "capabilityId": "capability.status.read-live-hp",
+      "core": "checked-scoped",
+      "evidenceClass": "L",
+      "remaining": "C014 live lifecycle; DA-01, DA-04, DA-08",
+      "fullOutcomePass": false
+    },
+    {
+      "id": "obligation.status.read-live-hp.allocation-checks",
+      "capabilityId": "capability.status.read-live-hp",
+      "core": "checked-scoped",
+      "evidenceClass": "A",
+      "remaining": "C014 live lifecycle; C013/C014 combined; DA-01, DA-04, DA-08",
+      "fullOutcomePass": false
+    }
+  ],
+  "coverageSha256": "a31239db5d642209fa83179c25a7aac0c16da084e1267841c7b8d592b8684d53"
+}

@@ -1,0 +1,10 @@
+SV fonts: text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server/lib/xtra/font/CascadiaMono-Regular.ttf; map requested=16x24x.pcf effective=/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-c011-followup/real-server/lib/xtra/font/16x24x.pcf; 
+SV map preferences: font-sv.prf missing; using server glyph identities (zero overrides)
+SV graphics: Graphics PRF missing; using sheet defaults
+SV graphics: Graphics PRF missing; using sheet defaults
+SV graphics requested=1/16x24sv effective=1/16x24sv generation=2544688115489075220
+SV preferences :0: Resource preference stage failed
+SV Lua early startup: status=0 scripts=5; session open awaits decoded server features
+SV initial audio: Audio disabled by requested settings (rate=0 speakers=0 tracks=0 buffer=0)
+SV endpoint startup failed: Parameter 'texture' is invalid
+endpoint result=1 phase=0 reason= birth=0 mode=0 stats=0 owners=0 prepared=0

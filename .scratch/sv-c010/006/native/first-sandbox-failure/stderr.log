@@ -1,0 +1,1 @@
+first-session: ../tests/sv/first-session.c:370: int main(int, char **): Assertion `peer.listener >= 0' failed.

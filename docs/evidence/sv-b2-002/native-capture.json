@@ -1,0 +1,266 @@
+[
+  {
+    "backend": "software",
+    "state": "server",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-m_py8ned",
+      "--fixture-window",
+      "1440x900",
+      "--frames",
+      "1200",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-002/servers.txt"
+    ]
+  },
+  {
+    "backend": "software",
+    "state": "manual",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-_wpn407m",
+      "--fixture-window",
+      "1440x900",
+      "--frames",
+      "1200",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-002/servers.txt"
+    ]
+  },
+  {
+    "backend": "software",
+    "state": "account",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-yq4bogtb",
+      "--fixture-window",
+      "1440x900",
+      "--frames",
+      "1200",
+      "--server",
+      "127.0.0.1:1"
+    ]
+  },
+  {
+    "backend": "software",
+    "state": "server",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-b9ujxpix",
+      "--fixture-window",
+      "1024x768",
+      "--frames",
+      "1200",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-002/servers.txt"
+    ]
+  },
+  {
+    "backend": "software",
+    "state": "manual",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-i20zmms5",
+      "--fixture-window",
+      "1024x768",
+      "--frames",
+      "1200",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-002/servers.txt"
+    ]
+  },
+  {
+    "backend": "software",
+    "state": "account",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-3p8ip9ax",
+      "--fixture-window",
+      "1024x768",
+      "--frames",
+      "1200",
+      "--server",
+      "127.0.0.1:1"
+    ]
+  },
+  {
+    "backend": "opengl",
+    "state": "server",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-m67ccvqm",
+      "--fixture-window",
+      "1440x900",
+      "--frames",
+      "1200",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-002/servers.txt"
+    ]
+  },
+  {
+    "backend": "opengl",
+    "state": "manual",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-gjwob8yp",
+      "--fixture-window",
+      "1440x900",
+      "--frames",
+      "1200",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-002/servers.txt"
+    ]
+  },
+  {
+    "backend": "opengl",
+    "state": "account",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-56_phcuv",
+      "--fixture-window",
+      "1440x900",
+      "--frames",
+      "1200",
+      "--server",
+      "127.0.0.1:1"
+    ]
+  },
+  {
+    "backend": "opengl",
+    "state": "server",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-hzmmmew8",
+      "--fixture-window",
+      "1024x768",
+      "--frames",
+      "1200",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-002/servers.txt"
+    ]
+  },
+  {
+    "backend": "opengl",
+    "state": "manual",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-d6ahj83x",
+      "--fixture-window",
+      "1024x768",
+      "--frames",
+      "1200",
+      "--server-list",
+      "/home/svechnik/Projects/tomenet_modern_client/docs/evidence/sv-b2-002/servers.txt"
+    ]
+  },
+  {
+    "backend": "opengl",
+    "state": "account",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/tmp/sv-b2-002-capture",
+      "--endpoint",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-002-native-vvfvhq61",
+      "--fixture-window",
+      "1024x768",
+      "--frames",
+      "1200",
+      "--server",
+      "127.0.0.1:1"
+    ]
+  }
+]

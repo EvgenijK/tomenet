@@ -1,0 +1,11 @@
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0
+refresh attempts=9 expected=27 ticks=0
+probe: .scratch/chronicle-refresh/probe.c:22: int main(void): Assertion `attempts == 27' failed.

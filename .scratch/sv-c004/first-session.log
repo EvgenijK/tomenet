@@ -1,0 +1,107 @@
+COMMAND: python3 tests/sv_first_session_checks.py (loopback allowed)
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:36: Error parsing preference record
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:37: Error parsing preference record
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:156: Converted baseline option alias in memory
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:200: Converted baseline option alias in memory
+SV initial audio: Audio disabled by requested settings (rate=0 speakers=0 tracks=0 buffer=0)
+SV text font unavailable: /tmp/sv-b020-5l2lrfsl/profile/xtra/font/CascadiaMono-Regular.ttf; trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64461
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV character preferences generation=1919121914: cancelling 2 retained effects at attempt close
+SV startup preferences: cancelling 182 retained effects at application close
+SV settings schema=1 diagnostics=0 unsupported=0 writable=1 ui_scale=100 layout=wide fps=100
+SV settings roots user=/tmp/sv-b020-5l2lrfsl/profile private=/tmp/sv-b020-5l2lrfsl/profile/sv library=/home/svechnik/Projects/tomenet_modern_client/lib
+SV audio requested sound=sound subset=1 music=music subset=1 rate=44100 tracks=32 buffer=1024 cache=1
+SV audio effective counts=0/0 sound= version= music= version= sound_config= music_config=
+SV startup text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/CascadiaMono-Regular.ttf
+SV startup window fullscreen=0 ui_scale=100 ignore_dpi=0 renderer=software
+SV endpoint selected host=127.0.0.1 port=37201
+SV contact ready host=127.0.0.1 port=37201 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Hero generation=1919121914
+SV-B-020 managed-peer production flow passed
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:36: Error parsing preference record
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:37: Error parsing preference record
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:156: Converted baseline option alias in memory
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:200: Converted baseline option alias in memory
+SV initial audio: Audio disabled by requested settings (rate=0 speakers=0 tracks=0 buffer=0)
+SV text font unavailable: /tmp/sv-b020-5l2lrfsl/profile/xtra/font/CascadiaMono-Regular.ttf; trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64461
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV contact failed: Server closed the connection. R retries; Escape exits. (status=0)
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV endpoint startup failed: 
+SV startup preferences: cancelling 182 retained effects at application close
+SV settings schema=1 diagnostics=0 unsupported=0 writable=1 ui_scale=100 layout=wide fps=100
+SV settings roots user=/tmp/sv-b020-5l2lrfsl/profile private=/tmp/sv-b020-5l2lrfsl/profile/sv library=/home/svechnik/Projects/tomenet_modern_client/lib
+SV audio requested sound=sound subset=1 music=music subset=1 rate=44100 tracks=32 buffer=1024 cache=1
+SV audio effective counts=0/0 sound= version= music= version= sound_config= music_config=
+SV startup text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/CascadiaMono-Regular.ttf
+SV startup window fullscreen=0 ui_scale=100 ignore_dpi=0 renderer=software
+SV endpoint selected host=127.0.0.1 port=45601
+SV contact ready host=127.0.0.1 port=45601 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV-B-020 managed-peer production flow passed
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:36: Error parsing preference record
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:37: Error parsing preference record
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:156: Converted baseline option alias in memory
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:200: Converted baseline option alias in memory
+SV initial audio: Audio disabled by requested settings (rate=0 speakers=0 tracks=0 buffer=0)
+SV text font unavailable: /tmp/sv-b020-5l2lrfsl/profile/xtra/font/CascadiaMono-Regular.ttf; trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV startup preferences: cancelling 182 retained effects at application close
+SV settings schema=1 diagnostics=0 unsupported=0 writable=1 ui_scale=100 layout=wide fps=100
+SV settings roots user=/tmp/sv-b020-5l2lrfsl/profile private=/tmp/sv-b020-5l2lrfsl/profile/sv library=/home/svechnik/Projects/tomenet_modern_client/lib
+SV audio requested sound=sound subset=1 music=music subset=1 rate=44100 tracks=32 buffer=1024 cache=1
+SV audio effective counts=0/0 sound= version= music= version= sound_config= music_config=
+SV startup text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/CascadiaMono-Regular.ttf
+SV startup window fullscreen=0 ui_scale=100 ignore_dpi=0 renderer=software
+SV endpoint selected host=127.0.0.1 port=43671
+SV contact ready host=127.0.0.1 port=43671 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV-B-020 managed-peer production flow passed
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:36: Error parsing preference record
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:37: Error parsing preference record
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:156: Converted baseline option alias in memory
+SV preferences /home/svechnik/Projects/tomenet_modern_client/lib/user/options.prf:200: Converted baseline option alias in memory
+SV initial audio: Audio disabled by requested settings (rate=0 speakers=0 tracks=0 buffer=0)
+SV text font unavailable: /tmp/sv-b020-5l2lrfsl/profile/xtra/font/CascadiaMono-Regular.ttf; trying declared fallback
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=ready events=40 bytes=53842
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=ready events=40 bytes=65749
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=ready events=40 bytes=64461
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=ready events=40 bytes=53814
+SV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=ready events=40 bytes=53776
+SV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=ready events=40 bytes=61783
+SV contact failed: Wrong password  Press R to retry or Escape to exit. (status=0)
+SV character preferences generation=1916647363: cancelling 2 retained effects at attempt close
+SV character preferences generation=2499946847: cancelling 2 retained effects at attempt close
+SV startup preferences: cancelling 182 retained effects at application close
+SV settings schema=1 diagnostics=0 unsupported=0 writable=1 ui_scale=100 layout=wide fps=100
+SV settings roots user=/tmp/sv-b020-5l2lrfsl/profile private=/tmp/sv-b020-5l2lrfsl/profile/sv library=/home/svechnik/Projects/tomenet_modern_client/lib
+SV audio requested sound=sound subset=1 music=music subset=1 rate=44100 tracks=32 buffer=1024 cache=1
+SV audio effective counts=0/0 sound= version= music= version= sound_config= music_config=
+SV startup text requested=CascadiaMono-Regular.ttf effective=/home/svechnik/Projects/tomenet_modern_client/lib/xtra/font/CascadiaMono-Regular.ttf
+SV startup window fullscreen=0 ui_scale=100 ignore_dpi=0 renderer=software
+SV endpoint selected host=127.0.0.1 port=44131
+SV contact ready host=127.0.0.1 port=44131 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV character selected; peer MOTD acknowledgement pending
+SV contact ready host=127.0.0.1 port=44131 server=4.9.4.0.0.0 races=0 classes=0 traits=0 motd=17
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Hero generation=2499946847
+SV-B-020 managed-peer production flow passed
+SV-B-020 first-session managed-peer checks passed

@@ -1,0 +1,77 @@
+
+Version symbols section '.gnu.version' contains 232 entries:
+ Addr: 0x000000000040280e  Offset: 0x0000280e  Link: 6 (.dynsym)
+  000:   0 (*local*)       2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    1 (*global*)   
+  004:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  008:   3 (GLIBC_2.2.5)   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  00c:   3 (GLIBC_2.2.5)   3 (GLIBC_2.2.5)   4 (GLIBC_2.14)    2 (SDL3_0.0.0) 
+  010:   5 (GLIBC_2.7)     2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    6 (SDL3_ttf_0.0.0) 
+  014:   2 (SDL3_0.0.0)    1 (*global*)      2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  018:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    7 (GLIBC_2.3)  
+  01c:   3 (GLIBC_2.2.5)   3 (GLIBC_2.2.5)   1 (*global*)      3 (GLIBC_2.2.5)
+  020:   2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)   2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  024:   1 (*global*)      2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)
+  028:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)   2 (SDL3_0.0.0) 
+  02c:   1 (*global*)      2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)   2 (SDL3_0.0.0) 
+  030:   2 (SDL3_0.0.0)    1 (*global*)      8 (GLIBC_2.4)     1 (*global*)   
+  034:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    7 (GLIBC_2.3)     3 (GLIBC_2.2.5)
+  038:   1 (*global*)      3 (GLIBC_2.2.5)   3 (GLIBC_2.2.5)   1 (*global*)   
+  03c:   2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)   1 (*global*)      2 (SDL3_0.0.0) 
+  040:   2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)   1 (*global*)      2 (SDL3_0.0.0) 
+  044:   2 (SDL3_0.0.0)    1 (*global*)      3 (GLIBC_2.2.5)   3 (GLIBC_2.2.5)
+  048:   7 (GLIBC_2.3)     1 (*global*)      1 (*global*)      3 (GLIBC_2.2.5)
+  04c:   3 (GLIBC_2.2.5)   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  050:   3 (GLIBC_2.2.5)   1 (*global*)      2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)
+  054:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)
+  058:   3 (GLIBC_2.2.5)   3 (GLIBC_2.2.5)   2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  05c:   1 (*global*)      2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)   9 (PNG16_0)    
+  060:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    1 (*global*)      2 (SDL3_0.0.0) 
+  064:   2 (SDL3_0.0.0)    6 (SDL3_ttf_0.0.0)    2 (SDL3_0.0.0)    9 (PNG16_0)    
+  068:   7 (GLIBC_2.3)     2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  06c:   1 (*global*)      3 (GLIBC_2.2.5)   2 (SDL3_0.0.0)    6 (SDL3_ttf_0.0.0) 
+  070:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    6 (SDL3_ttf_0.0.0) 
+  074:   2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)   3 (GLIBC_2.2.5)   2 (SDL3_0.0.0) 
+  078:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    9 (PNG16_0)    
+  07c:   3 (GLIBC_2.2.5)   3 (GLIBC_2.2.5)   2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  080:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    6 (SDL3_ttf_0.0.0) 
+  084:   1 (*global*)      3 (GLIBC_2.2.5)   2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)
+  088:   1 (*global*)      2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)   3 (GLIBC_2.2.5)
+  08c:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  090:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  094:   6 (SDL3_ttf_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)
+  098:   3 (GLIBC_2.2.5)   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  09c:   2 (SDL3_0.0.0)    1 (*global*)      2 (SDL3_0.0.0)    1 (*global*)   
+  0a0:   2 (SDL3_0.0.0)    1 (*global*)      3 (GLIBC_2.2.5)   2 (SDL3_0.0.0) 
+  0a4:   2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)   2 (SDL3_0.0.0)    1 (*global*)   
+  0a8:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  0ac:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  0b0:   3 (GLIBC_2.2.5)   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  0b4:   3 (GLIBC_2.2.5)   6 (SDL3_ttf_0.0.0)    2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)
+  0b8:   2 (SDL3_0.0.0)    1 (*global*)      2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  0bc:   2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)   2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  0c0:   3 (GLIBC_2.2.5)   3 (GLIBC_2.2.5)   2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  0c4:   1 (*global*)      6 (SDL3_ttf_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  0c8:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  0cc:   2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)   3 (GLIBC_2.2.5)
+  0d0:   2 (SDL3_0.0.0)    1 (*global*)      2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)
+  0d4:   2 (SDL3_0.0.0)    6 (SDL3_ttf_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  0d8:   6 (SDL3_ttf_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0)    2 (SDL3_0.0.0) 
+  0dc:   2 (SDL3_0.0.0)    3 (GLIBC_2.2.5)   2 (SDL3_0.0.0)    a (GLIBC_2.34) 
+  0e0:   1 (*global*)      3 (GLIBC_2.2.5)   2 (SDL3_0.0.0)    6 (SDL3_ttf_0.0.0) 
+  0e4:   1 (*global*)      3 (GLIBC_2.2.5)   3 (GLIBC_2.2.5)   3 (GLIBC_2.2.5)
+
+Version needs section '.gnu.version_r' contains 4 entries:
+ Addr: 0x00000000004029e0  Offset: 0x000029e0  Link: 7 (.dynstr)
+  000000: Version: 1  File: libpng16.so.16  Cnt: 1
+  0x0010:   Name: PNG16_0  Flags: none  Version: 9
+  0x0020: Version: 1  File: libSDL3_ttf.so.0  Cnt: 1
+  0x0030:   Name: SDL3_ttf_0.0.0  Flags: none  Version: 6
+  0x0040: Version: 1  File: libc.so.6  Cnt: 6
+  0x0050:   Name: GLIBC_2.34  Flags: none  Version: 10
+  0x0060:   Name: GLIBC_2.4  Flags: none  Version: 8
+  0x0070:   Name: GLIBC_2.3  Flags: none  Version: 7
+  0x0080:   Name: GLIBC_2.7  Flags: none  Version: 5
+  0x0090:   Name: GLIBC_2.14  Flags: none  Version: 4
+  0x00a0:   Name: GLIBC_2.2.5  Flags: none  Version: 3
+  0x00b0: Version: 1  File: libSDL3.so.0  Cnt: 1
+  0x00c0:   Name: SDL3_0.0.0  Flags: none  Version: 2

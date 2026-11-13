@@ -1,0 +1,17 @@
+[
+  "clang",
+  "-std=c99",
+  "-Wall",
+  "-Wextra",
+  "-Werror",
+  "-g",
+  "-fsanitize=address,undefined",
+  "-fno-omit-frame-pointer",
+  "-Isrc/client/sv",
+  "tests/sv/map-effects.c",
+  "src/client/sv/session/map-effects.c",
+  "src/client/sv/protocol/rendering.c",
+  "-lm",
+  "-o",
+  ".scratch/sv-c007/map-effects"
+]

@@ -1,0 +1,11 @@
+base 10 chosen 0: expected RGB 199,157,85 count 32
+base 8 chosen 0: expected RGB 183,0,0 count 15
+base 17 chosen 0: expected RGB 175,0,255 count 27
+base 10 chosen 1: expected RGB 255,141,0 count 32
+base 8 chosen 1: expected RGB 255,48,48 count 15
+base 17 chosen 1: expected RGB 0,255,255 count 27
+selection keyboard 0 footer 0: outline 0
+selection keyboard 0 footer 1: outline 0
+selection keyboard 1 footer 0: outline 1
+selection keyboard 1 footer 1: outline 0
+Current 18/100 text 78.0 cell 90.0

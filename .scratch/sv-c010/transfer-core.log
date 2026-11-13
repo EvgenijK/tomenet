@@ -1,0 +1,12 @@
+SV transfer: File END: destination publication failed or transfer unavailable
+SV transfer: File INIT: updates disabled, invalid destination or temporary open failed
+SV transfer: File INIT: updates disabled, invalid destination or temporary open failed
+SV transfer: File END: destination publication failed or transfer unavailable
+SV transfer: File transfer: peer reported ERR
+SV transfer: File transfer: peer reported ERR
+CHECK: exact old/MD5 bytes, boundary, missing/empty and operation paths PASS
+incoming: split/chained 1030-byte frame, publication/Lua failures, sticky lifecycle PASS
+lifecycle: accepted INIT-disconnect sticky flags, -u rejects every INIT without flags PASS
+output: production buffer drain/resume without repeat file/Lua effects PASS
+upload: 256/1024 boundary, cancel, ACK pacing, empty/exact EOF tick and ERR cleanup PASS
+PASS: production C010 login/transfer/Lua core; warnings=7 diagnostics=2 root=/tmp/sv-transfer-core-ityivJ

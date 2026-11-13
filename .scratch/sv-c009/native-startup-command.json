@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/home/svechnik/Projects/tomenet_modern_client/src/tomenet-sv",
+    "--frames",
+    "3",
+    "--fixture-window",
+    "1024x768"
+  ],
+  "environment": {
+    "TOMENET_SDL3_USER_PATH": "/tmp/sv-c009-native-zggz8_3y/user",
+    "TOMENET_PATH": "/home/svechnik/Projects/tomenet_modern_client/lib",
+    "SDL_VIDEODRIVER": "dummy",
+    "SDL_RENDER_DRIVER": "software",
+    "SDL_AUDIODRIVER": "dummy"
+  },
+  "exitCode": 0,
+  "userFilesAfter": [],
+  "binarySha256": "8dc7916b4991809a8cc4ed8878300e88238c8cff8dc3d7964a9bed9de07d47c2"
+}

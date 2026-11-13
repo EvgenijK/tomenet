@@ -1,0 +1,59 @@
+*** Begin Patch
+*** Update File: tests/sv/first-session.c
+@@
+         assert(!strcmp(sv_app_view(app).identity.name,branch>=2?"ServerName":"Selected"));
++        SvCharacterIdentity first=sv_app_view(app).identity;
++        /* A second complete accepted occurrence updates the semantic region,
++         * without issuing commands or loading startup data as a view effect. */
++        packet[branch>0?8:6]=0; /* sex low byte */
++        assert(sv_app_receive(app,generation,packet,size)==SV_OK && sv_app_step(app,1).processed==1);
++        SvCharacterIdentity repeated=sv_app_view(app).identity;
++        assert(repeated.available && repeated.generation==generation &&
++            repeated.revision==first.revision+1 && repeated.sex==0);
++        assert(!strcmp(repeated.name,first.name) && repeated.mode==first.mode);
++        unsigned char unexpected[64];
++        assert(sv_app_take_output(app,generation,unexpected,sizeof(unexpected)).result==SV_WAITING);
+@@
+-static void redraw_checks(void)
++typedef struct { unsigned submissions; SvAppView view; } C011RedrawProjection;
++static bool c011_redraw_projection(void *context,SvAppView view,bool pause)
++{
++    C011RedrawProjection *projection=context;
++    assert(!pause);projection->submissions++;projection->view=view;return true;
++}
++static void redraw_checks(void)
+@@
+     int32_t quantity;assert(sv_app_take_quantity(app,generation,&quantity)==SV_OK);
++    C011RedrawProjection projection={0};
++    assert(sv_app_set_control_sink(app,(SvControlSink){&projection,c011_redraw_projection,NULL})==SV_OK);
++    const unsigned char initial[]={PKT_HP,0,200,0,100,0,PKT_MESSAGE,'b','e','f','o','r','e',0};
++    assert(sv_app_receive(app,generation,initial,sizeof(initial))==SV_OK);
++    assert(sv_app_step(app,2).processed==2);
++    assert(sv_app_view(app).status.current==100 && sv_app_view(app).messages.count==1);
+@@
+     assert(!sv_app_view(app).redraw_revision);
++    const unsigned char updated[]={PKT_HP,0,200,0,127,0,PKT_MESSAGE,'a','f','t','e','r',0};
++    assert(sv_app_receive(app,generation,updated,sizeof(updated))==SV_OK);
+     assert(sv_app_take_output(app,generation,output,sizeof(output)).size>0);
+-    sv_app_step(app,1);
++    assert(sv_app_step(app,2).processed==2);
+@@
+     assert(sv_app_view(app).redraw_revision==1);
++    /* The queued redraw precedes the newer network occurrences. Its render
++     * submission contains one coherent old view, never a mix of both states. */
++    assert(projection.submissions==1 && projection.view.status.current==100 &&
++        projection.view.messages.count==1 &&
++        !strcmp((const char *)projection.view.messages.lines[0].bytes,"before"));
++    assert(sv_app_view(app).status.current==127 && sv_app_view(app).messages.count==2);
+     sv_app_step(app,1);assert(sv_app_take_output(app,generation,output,sizeof(output)).result==SV_WAITING);
++    assert(sv_app_physical(app,generation,&key,1)==SV_OK);
++    SvOutput refreshed=sv_app_take_output(app,generation,output,sizeof(output));
++    assert(refreshed.result==SV_OK && refreshed.size==2 && output[0]==PKT_REDRAW && !output[1]);
++    assert(projection.submissions==2 && projection.view.redraw_revision==2 &&
++        projection.view.status.current==127 && projection.view.messages.count==2 &&
++        !strcmp((const char *)projection.view.messages.lines[1].bytes,"after"));
++    SvMessage message;
++    assert(sv_app_take_message(app,generation,&message)==SV_OK && !strcmp((const char *)message.bytes,"before"));
++    assert(sv_app_take_message(app,generation,&message)==SV_OK && !strcmp((const char *)message.bytes,"after"));
++    assert(sv_app_take_message(app,generation,&message)==SV_WAITING); /* redraw never consumes feed delivery */
+*** End Patch

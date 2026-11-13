@@ -1,0 +1,72 @@
+{
+  "archive": "/packages/tomenet-sv-4.9.4-linux-amd64.tar.bz2",
+  "sha256": "5c03d91101978ae0b1e3cbe3ea4bfb614c9d8a1a90971e98b9aa76ba1e730d5c",
+  "package": "/tmp/sv-c001-observation/relocated/installed",
+  "cwd": "/tmp/sv-c001-observation/unrelated",
+  "environment": "NAME=\"Fedora Linux\"\nVERSION=\"41 (Container Image)\"\nRELEASE_TYPE=stable\nID=fedora\nVERSION_ID=41\nVERSION_CODENAME=\"\"\nPLATFORM_ID=\"platform:f41\"\nPRETTY_NAME=\"Fedora Linux 41 (Container Image)\"\nANSI_COLOR=\"0;38;2;60;110;180\"\nLOGO=fedora-logo-icon\nCPE_NAME=\"cpe:/o:fedoraproject:fedora:41\"\nDEFAULT_HOSTNAME=\"fedora\"\nHOME_URL=\"https://fedoraproject.org/\"\nDOCUMENTATION_URL=\"https://docs.fedoraproject.org/en-US/fedora/f41/\"\nSUPPORT_URL=\"https://ask.fedoraproject.org/\"\nBUG_REPORT_URL=\"https://bugzilla.redhat.com/\"\nREDHAT_BUGZILLA_PRODUCT=\"Fedora\"\nREDHAT_BUGZILLA_PRODUCT_VERSION=41\nREDHAT_SUPPORT_PRODUCT=\"Fedora\"\nREDHAT_SUPPORT_PRODUCT_VERSION=41\nSUPPORT_END=2025-12-15\nVARIANT=\"Container Image\"\nVARIANT_ID=container\n",
+  "observations": [
+    {
+      "name": "default-software",
+      "command": [
+        "strace",
+        "-f",
+        "-e",
+        "trace=file",
+        "-o",
+        "/results/default-software.strace",
+        "/tmp/sv-c001-observation/relocated/installed/tomenet-sv",
+        "--frames",
+        "2"
+      ],
+      "expected": "success",
+      "overrides": {
+        "HOME": "/tmp/sv-c001-observation/default-software/home",
+        "XDG_DATA_HOME": "/tmp/sv-c001-observation/default-software/data",
+        "XDG_CONFIG_HOME": "/tmp/sv-c001-observation/default-software/config",
+        "XDG_CACHE_HOME": "/tmp/sv-c001-observation/default-software/cache",
+        "XDG_RUNTIME_DIR": "/tmp/sv-c001-observation/default-software/runtime",
+        "DISPLAY": ":77",
+        "SDL_VIDEO_DRIVER": "x11",
+        "SDL_RENDER_DRIVER": "software",
+        "LIBGL_ALWAYS_SOFTWARE": "1",
+        "SV_B2_CAPTURE": "/results/default-software.bmp",
+        "SV_B2_REDUCED_MOTION": "1"
+      },
+      "exit": 0,
+      "output": "SV resource unavailable: /tmp/sv-c001-observation/default-software/data/TomenetGame/tomenet//xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-c001-observation/default-software/data/TomenetGame/tomenet//xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback\nSV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0\nSV endpoint selection incomplete; no contact attempted\n",
+      "capture": "default-software.bmp"
+    },
+    {
+      "name": "default-opengl",
+      "command": [
+        "strace",
+        "-f",
+        "-e",
+        "trace=file",
+        "-o",
+        "/results/default-opengl.strace",
+        "/tmp/sv-c001-observation/relocated/installed/tomenet-sv",
+        "--frames",
+        "2"
+      ],
+      "expected": "success",
+      "overrides": {
+        "HOME": "/tmp/sv-c001-observation/default-opengl/home",
+        "XDG_DATA_HOME": "/tmp/sv-c001-observation/default-opengl/data",
+        "XDG_CONFIG_HOME": "/tmp/sv-c001-observation/default-opengl/config",
+        "XDG_CACHE_HOME": "/tmp/sv-c001-observation/default-opengl/cache",
+        "XDG_RUNTIME_DIR": "/tmp/sv-c001-observation/default-opengl/runtime",
+        "DISPLAY": ":77",
+        "SDL_VIDEO_DRIVER": "x11",
+        "SDL_RENDER_DRIVER": "opengl",
+        "LIBGL_ALWAYS_SOFTWARE": "1",
+        "SV_B2_CAPTURE": "/results/default-opengl.bmp",
+        "SV_B2_REDUCED_MOTION": "1"
+      },
+      "exit": 0,
+      "output": "SV resource unavailable: /tmp/sv-c001-observation/default-opengl/data/TomenetGame/tomenet//xtra/font/CascadiaMono-Regular.ttf (Couldn't open /tmp/sv-c001-observation/default-opengl/data/TomenetGame/tomenet//xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback\nSV Chronicle source=https://www.tomenet.eu/deaths.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/superuniques.php?server=europe.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/deaths.php?server=na.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/superuniques.php?server=na.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/deaths.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0\nSV Chronicle source=https://www.tomenet.eu/superuniques.php?server=apac.tomenet.eu status=unavailable events=0 bytes=0\nSV endpoint selection incomplete; no contact attempted\n",
+      "capture": "default-opengl.bmp"
+    }
+  ],
+  "scope": "Fedora41 isolated runtime; Xvfb OpenGL is Mesa software rendering, not physical GPU"
+}

@@ -1,0 +1,1906 @@
+{
+  "runnerSha256": "9718586a5201fe4d7d4c222a8f501c3e76d8839b5ac32c3139259aa9da429c49",
+  "started": "2026-09-23T13:31:20.508241+00:00",
+  "host": "Linux-6.18.49-1-MANJARO-x86_64-with-glibc2.44",
+  "python": "3.14.7 (main, Aug 10 2026, 07:46:56) [GCC 16.1.1 20260728]",
+  "checks": [
+    {
+      "name": "build-linux",
+      "command": [
+        "make",
+        "-C",
+        "src",
+        "-f",
+        "makefile.sv",
+        "tomenet-sv"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.114,
+      "log": "build-linux.log",
+      "sha256": "aea40e6c3ec8593bd34ae8a573eef4b475d019cc7cc09474d978cc04fd311f7f",
+      "runtimeReport": "build-linux.runtime.jsonl"
+    },
+    {
+      "name": "prepare-mingw-sdk",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tools/prepare_sv_mingw.py",
+        "--sdk",
+        "/tmp/sv16-sdk-final",
+        "--downloads",
+        "/tmp/sv16-downloads"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.064,
+      "log": "prepare-mingw-sdk.log",
+      "sha256": "40e9ce7f5e8e576433c5020cd3ca7a0d15f9a77743e58b17c11a198d5d365ccd",
+      "runtimeReport": "prepare-mingw-sdk.runtime.jsonl"
+    },
+    {
+      "name": "build-mingw",
+      "command": [
+        "make",
+        "-C",
+        "src",
+        "-f",
+        "makefile.sv",
+        "tomenet-sv.exe",
+        "PKG_CONFIG_MINGW=/tmp/sv16-sdk-final/pkg-config-i686"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.265,
+      "log": "build-mingw.log",
+      "sha256": "e8158ca14fea1c293c13b0e2767a2a6623d8857511d719c98b77637b66cf0f51",
+      "runtimeReport": "build-mingw.runtime.jsonl"
+    },
+    {
+      "name": "build-formats",
+      "command": [
+        "file",
+        "src/tomenet-sv",
+        "src/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.017,
+      "log": "build-formats.log",
+      "sha256": "1acccf5a1150bff6d6cb68cfa087b681bc6d66464e1718ed1687ae5661822591",
+      "runtimeReport": "build-formats.runtime.jsonl"
+    },
+    {
+      "name": "legacy-sdl3",
+      "command": [
+        "make",
+        "-C",
+        "src",
+        "-f",
+        "makefile.sdl3",
+        "-W",
+        "client/main-sdl3.linux.o",
+        "tomenet"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.215,
+      "log": "legacy-sdl3.log",
+      "sha256": "5f2967a2880b87fc53c42ce74ebc87813b27f9cb217d91831b56a283259a5af8",
+      "runtimeReport": "legacy-sdl3.runtime.jsonl"
+    },
+    {
+      "name": "legacy-x11",
+      "command": [
+        "make",
+        "-C",
+        "src",
+        "-f",
+        "makefile",
+        "-W",
+        "client/main-x11.o",
+        "tomenet"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.115,
+      "log": "legacy-x11.log",
+      "sha256": "6431da21c2ce8498a691339a1d60b4f600be3ba75f51b79522629b7f86437ebb",
+      "runtimeReport": "legacy-x11.runtime.jsonl"
+    },
+    {
+      "name": "capabilities",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_capabilities_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 199.87,
+      "log": "capabilities.log",
+      "sha256": "271ea7913f39e239e6bd5a0d92145e22049b1a500221ea48d89f0a8dc2c7b91b",
+      "runtimeReport": "capabilities.runtime.jsonl"
+    },
+    {
+      "name": "reconciliation",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_reconciliation_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.519,
+      "log": "reconciliation.log",
+      "sha256": "2986f970fa28a13f285377611fc7694d20692415fbbd1ce4c35239aff04f745d",
+      "runtimeReport": "reconciliation.runtime.jsonl"
+    },
+    {
+      "name": "evidence",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_evidence_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 2.52,
+      "log": "evidence.log",
+      "sha256": "0fd4a12dfd350fa3b85d129c82ce380756ca415392f5d9d5d3a94b68bad419a7",
+      "runtimeReport": "evidence.runtime.jsonl"
+    },
+    {
+      "name": "html",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_html_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 8.685,
+      "log": "html.log",
+      "sha256": "8466d2d912b65da9f943270054a67cf6543fbae13f50f768aa9f0563e29cf4c3",
+      "runtimeReport": "html.runtime.jsonl"
+    },
+    {
+      "name": "arch-headless",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_arch_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.367,
+      "log": "arch-headless.log",
+      "sha256": "bb5d9aa3557302716866e21e94b794ca155b7a8774eab026d99afea3f5c5bd61",
+      "runtimeReport": "arch-headless.runtime.jsonl"
+    },
+    {
+      "name": "message-headless",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_message_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.418,
+      "log": "message-headless.log",
+      "sha256": "e0ce5155e922d7e860c962b2c2a7132293db374ba883ebebfbb469ce94478610",
+      "runtimeReport": "message-headless.runtime.jsonl"
+    },
+    {
+      "name": "request-headless",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_request_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.37,
+      "log": "request-headless.log",
+      "sha256": "19f058c6dbb35713572a4c7afec582a105f9dba82e5e6df8ae74b1eace9a2207",
+      "runtimeReport": "request-headless.runtime.jsonl"
+    },
+    {
+      "name": "lifecycle-headless",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_lifecycle_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.317,
+      "log": "lifecycle-headless.log",
+      "sha256": "911f76ec4dbf77a178135501fe1ad34eb36ec6b5c593b938daa39e3eab2a5fdf",
+      "runtimeReport": "lifecycle-headless.runtime.jsonl"
+    },
+    {
+      "name": "runtime-headless",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_runtime_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.668,
+      "log": "runtime-headless.log",
+      "sha256": "99b0ccca11b2098466bee6092cbae250829067fefc5b6630759ab83cdabb56ed",
+      "runtimeReport": "runtime-headless.runtime.jsonl"
+    },
+    {
+      "name": "runtime-producer",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_runtime_producer_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.064,
+      "log": "runtime-producer.log",
+      "sha256": "feabb4add9e2ca3374e538560634d1ec97dc4f4ce89aab12f3d726e36ea9b2f6",
+      "runtimeReport": "runtime-producer.runtime.jsonl"
+    },
+    {
+      "name": "checkpoint-contract",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_checkpoint_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 73.577,
+      "log": "checkpoint-contract.log",
+      "sha256": "a34b9e990a379faa769031dbf5d5d2cbb8a6b7423854b3da23e5acd98f309a68",
+      "runtimeReport": "checkpoint-contract.runtime.jsonl"
+    },
+    {
+      "name": "human-review-contract",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_review_checks.py"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.869,
+      "log": "human-review-contract.log",
+      "sha256": "36ada7db4051df5644e45a1f157693cc0f678d748db41e8802626f14a435c526",
+      "runtimeReport": "human-review-contract.runtime.jsonl"
+    },
+    {
+      "name": "legacy-hp",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_hp_checks.py",
+        "--legacy-only"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.967,
+      "log": "legacy-hp.log",
+      "sha256": "4917f60215f0b3e633cdcba9ce14b61790e3c5b02d3e41c41a1460440e2ca5f1",
+      "runtimeReport": "legacy-hp.runtime.jsonl"
+    },
+    {
+      "name": "software-hp_checks",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_hp_checks.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.515,
+      "log": "software-hp_checks.log",
+      "sha256": "8157a1362559707220ca2ad021f8627b0463b36e6ed9aa96180ffbcdc379b0da",
+      "runtimeReport": "software-hp_checks.runtime.jsonl"
+    },
+    {
+      "name": "software-arch_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_arch_native.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.216,
+      "log": "software-arch_native.log",
+      "sha256": "b54a6e23e15b368470ac22a9606ff525c5a0e9c015747de86e39b08ab75be827",
+      "runtimeReport": "software-arch_native.runtime.jsonl"
+    },
+    {
+      "name": "software-message_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_message_native.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.315,
+      "log": "software-message_native.log",
+      "sha256": "0ce3ab945f365c6af29d8219342eb99282d3736b160f4e001a2262c84c9821bf",
+      "runtimeReport": "software-message_native.runtime.jsonl"
+    },
+    {
+      "name": "software-request_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_request_native.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.416,
+      "log": "software-request_native.log",
+      "sha256": "4886651beef13084c84f5a097105ed7cfaae3f3f6eaca8c02a542920aee2b98d",
+      "runtimeReport": "software-request_native.runtime.jsonl"
+    },
+    {
+      "name": "software-lifecycle_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_lifecycle_native.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.215,
+      "log": "software-lifecycle_native.log",
+      "sha256": "a962339ce979676d23dd4b237059338c0b9a0d2bff2808a0f77b980286712f1e",
+      "runtimeReport": "software-lifecycle_native.runtime.jsonl"
+    },
+    {
+      "name": "software-shell_smoke",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_shell_smoke.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.967,
+      "log": "software-shell_smoke.log",
+      "sha256": "4542d80d0be90e063e9ca42e710715b80d29accd10f990ea783ae6c591a0a072",
+      "runtimeReport": "software-shell_smoke.runtime.jsonl"
+    },
+    {
+      "name": "software-geometry_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_geometry_native.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.216,
+      "log": "software-geometry_native.log",
+      "sha256": "4eb25dc4bb1d2e023c8c43d65f7837650cad6feeddd2c06dff8a24c585b74554",
+      "runtimeReport": "software-geometry_native.runtime.jsonl"
+    },
+    {
+      "name": "software-timing_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_timing_native.py",
+        "--backend",
+        "software"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.466,
+      "log": "software-timing_native.log",
+      "sha256": "48e98b7b8fe6e42e611f02dae6efdd5a13e486c2fbe773ff0bb1cc1ca225f4e3",
+      "runtimeReport": "software-timing_native.runtime.jsonl"
+    },
+    {
+      "name": "software-geometry-pcf",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_geometry_native.py",
+        "--backend",
+        "software",
+        "--pcf"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.215,
+      "log": "software-geometry-pcf.log",
+      "sha256": "7c1df8050e3b87988bbe7ea4238eb36ca9f57038466537612e87f5dcb0cafb2b",
+      "runtimeReport": "software-geometry-pcf.runtime.jsonl"
+    },
+    {
+      "name": "opengl-hp_checks",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_hp_checks.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.265,
+      "log": "opengl-hp_checks.log",
+      "sha256": "8e9e6367ea025d16b1f439187a6db4dad7f7c8cbdda002a2acc325f80cf85deb",
+      "runtimeReport": "opengl-hp_checks.runtime.jsonl"
+    },
+    {
+      "name": "opengl-arch_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_arch_native.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.215,
+      "log": "opengl-arch_native.log",
+      "sha256": "131783c1a2fa3e950912310bca98a168fff8b0dbea9e7b621906bf8475155e15",
+      "runtimeReport": "opengl-arch_native.runtime.jsonl"
+    },
+    {
+      "name": "opengl-message_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_message_native.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.215,
+      "log": "opengl-message_native.log",
+      "sha256": "3a702079086b47bb98bfa76a651b9732492c1b5e68064e9815f6d6d5acef64a1",
+      "runtimeReport": "opengl-message_native.runtime.jsonl"
+    },
+    {
+      "name": "opengl-request_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_request_native.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.264,
+      "log": "opengl-request_native.log",
+      "sha256": "a62c43de4f271677e0e8b6fd7584792b9532dc7ed2afc1ddccf304b2ea5b38a4",
+      "runtimeReport": "opengl-request_native.runtime.jsonl"
+    },
+    {
+      "name": "opengl-lifecycle_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_lifecycle_native.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.216,
+      "log": "opengl-lifecycle_native.log",
+      "sha256": "cb050ce11d37b8ea8ab1195e8422cb1cfef92fa9b2737072da2496959b1c4980",
+      "runtimeReport": "opengl-lifecycle_native.runtime.jsonl"
+    },
+    {
+      "name": "opengl-shell_smoke",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_shell_smoke.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.916,
+      "log": "opengl-shell_smoke.log",
+      "sha256": "5ce60e5d81568aadae67aa0b329ece35feca68b36c1a7f8a06df276048615314",
+      "runtimeReport": "opengl-shell_smoke.runtime.jsonl"
+    },
+    {
+      "name": "opengl-geometry_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_geometry_native.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.215,
+      "log": "opengl-geometry_native.log",
+      "sha256": "98364d71dd4f1ab230c770b1cdb2dc33414a97e4e851aa0a52f9626f83486fbf",
+      "runtimeReport": "opengl-geometry_native.runtime.jsonl"
+    },
+    {
+      "name": "opengl-timing_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_timing_native.py",
+        "--backend",
+        "opengl"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.416,
+      "log": "opengl-timing_native.log",
+      "sha256": "0bbc275d58bc77f610213f2d8fa1a25957acbc7f3955812b37462194507ce7c7",
+      "runtimeReport": "opengl-timing_native.runtime.jsonl"
+    },
+    {
+      "name": "opengl-geometry-pcf",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_geometry_native.py",
+        "--backend",
+        "opengl",
+        "--pcf"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.215,
+      "log": "opengl-geometry-pcf.log",
+      "sha256": "19ad0f76e3a1400a66656eafd5a0b652f94ab424b37c756f16b95dd3391e8873",
+      "runtimeReport": "opengl-geometry-pcf.runtime.jsonl"
+    },
+    {
+      "name": "stage-wine",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tools/prepare_sv_mingw.py",
+        "--sdk",
+        "/tmp/sv16-sdk-final",
+        "--stage",
+        "/tmp/sv19-final-evidence/wine-bin",
+        "--binary",
+        "/home/svechnik/Projects/tomenet_modern_client/src/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.166,
+      "log": "stage-wine.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "runtimeReport": "stage-wine.runtime.jsonl"
+    },
+    {
+      "name": "wine-version",
+      "command": [
+        "wine",
+        "--version"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.005,
+      "log": "wine-version.log",
+      "sha256": "5a9d8c64233e5dcc50dab4a672551417be6dfbcafedfbfeb7262bf5c090b3295",
+      "runtimeReport": "wine-version.runtime.jsonl"
+    },
+    {
+      "name": "wineboot",
+      "command": [
+        "wineboot",
+        "-u"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 10.846,
+      "log": "wineboot.log",
+      "sha256": "b8a6752f8b30fa0cd8f30632707b0f488011868ca8e35e5a82d09f09a4501f59",
+      "runtimeReport": "wineboot.runtime.jsonl"
+    },
+    {
+      "name": "wine-software-hp_checks",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_hp_checks.py",
+        "--backend",
+        "software",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.767,
+      "log": "wine-software-hp_checks.log",
+      "sha256": "f6da18176803da32341273e663b1251525275f677dbd901e6fbb7dfdf052b8e8",
+      "runtimeReport": "wine-software-hp_checks.runtime.jsonl"
+    },
+    {
+      "name": "wine-software-arch_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_arch_native.py",
+        "--backend",
+        "software",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.616,
+      "log": "wine-software-arch_native.log",
+      "sha256": "caf82a206417c564313315c3d179722cbfc3926c5dd59c3753e02e7f02b7d131",
+      "runtimeReport": "wine-software-arch_native.runtime.jsonl"
+    },
+    {
+      "name": "wine-software-message_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_message_native.py",
+        "--backend",
+        "software",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.666,
+      "log": "wine-software-message_native.log",
+      "sha256": "cfb984842da746d25ab1116a78fe109e13c8fc225951fe139818fec3ee184116",
+      "runtimeReport": "wine-software-message_native.runtime.jsonl"
+    },
+    {
+      "name": "wine-software-request_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_request_native.py",
+        "--backend",
+        "software",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.766,
+      "log": "wine-software-request_native.log",
+      "sha256": "70f34f14831627616063d65e51f9c9059ec610c2c74e001c2ab6c7ccca2c3381",
+      "runtimeReport": "wine-software-request_native.runtime.jsonl"
+    },
+    {
+      "name": "wine-software-lifecycle_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_lifecycle_native.py",
+        "--backend",
+        "software",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.615,
+      "log": "wine-software-lifecycle_native.log",
+      "sha256": "88b6972dcdee509aed26e69df4b8793bd4eddc551cf5f3beb2eebdb7ca7d6f62",
+      "runtimeReport": "wine-software-lifecycle_native.runtime.jsonl"
+    },
+    {
+      "name": "wine-software-shell_smoke",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_shell_smoke.py",
+        "--backend",
+        "software",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 4.325,
+      "log": "wine-software-shell_smoke.log",
+      "sha256": "ebb65a8b5791ea89555efbee5f1ffb17ad50b45da574c7427ed7f23ae38cc816",
+      "runtimeReport": "wine-software-shell_smoke.runtime.jsonl"
+    },
+    {
+      "name": "wine-software-geometry_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_geometry_native.py",
+        "--backend",
+        "software",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.666,
+      "log": "wine-software-geometry_native.log",
+      "sha256": "036bfe8530a234c39028af03ed693400c3872398a4c2a545a055b718f066377d",
+      "runtimeReport": "wine-software-geometry_native.runtime.jsonl"
+    },
+    {
+      "name": "wine-software-timing_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_timing_native.py",
+        "--backend",
+        "software",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.216,
+      "log": "wine-software-timing_native.log",
+      "sha256": "9f2f31046efac8d25dc2065faa619f49dbdca49f8e2f3c37e10d87aace82d1fc",
+      "runtimeReport": "wine-software-timing_native.runtime.jsonl"
+    },
+    {
+      "name": "wine-software-geometry-pcf",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_geometry_native.py",
+        "--backend",
+        "software",
+        "--pcf",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.665,
+      "log": "wine-software-geometry-pcf.log",
+      "sha256": "117690e274f6773af30687a2588a42a7ad4dadaaddb10d3d84d186664dbb0e6d",
+      "runtimeReport": "wine-software-geometry-pcf.runtime.jsonl"
+    },
+    {
+      "name": "wine-direct3d-hp_checks",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_hp_checks.py",
+        "--backend",
+        "direct3d",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.167,
+      "log": "wine-direct3d-hp_checks.log",
+      "sha256": "9ae241e354f25343baee3dd04d95b5e3316fdd483e58886cc2e0117436e16f42",
+      "runtimeReport": "wine-direct3d-hp_checks.runtime.jsonl"
+    },
+    {
+      "name": "wine-direct3d-arch_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_arch_native.py",
+        "--backend",
+        "direct3d",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.816,
+      "log": "wine-direct3d-arch_native.log",
+      "sha256": "fdf9cd38b21357ba11ce4b98044267961372104a828f2951d9b9c22453084585",
+      "runtimeReport": "wine-direct3d-arch_native.runtime.jsonl"
+    },
+    {
+      "name": "wine-direct3d-message_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_message_native.py",
+        "--backend",
+        "direct3d",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.068,
+      "log": "wine-direct3d-message_native.log",
+      "sha256": "05b77956f7c931fc05ce8aa3258775c50827bb6424cccce6627b48398edf8047",
+      "runtimeReport": "wine-direct3d-message_native.runtime.jsonl"
+    },
+    {
+      "name": "wine-direct3d-request_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_request_native.py",
+        "--backend",
+        "direct3d",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.167,
+      "log": "wine-direct3d-request_native.log",
+      "sha256": "cc7a6a2cb47e3fa0718ae1930f215d39a1adb6ffd89f27c2f92d45d63714176c",
+      "runtimeReport": "wine-direct3d-request_native.runtime.jsonl"
+    },
+    {
+      "name": "wine-direct3d-lifecycle_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_lifecycle_native.py",
+        "--backend",
+        "direct3d",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.018,
+      "log": "wine-direct3d-lifecycle_native.log",
+      "sha256": "6f34ed16f78504e96d297c85a8e54061900e615e5c68bdeb4f349508b3537448",
+      "runtimeReport": "wine-direct3d-lifecycle_native.runtime.jsonl"
+    },
+    {
+      "name": "wine-direct3d-shell_smoke",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_shell_smoke.py",
+        "--backend",
+        "direct3d",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 4.777,
+      "log": "wine-direct3d-shell_smoke.log",
+      "sha256": "8e85dcf5d97aa8caddb909990af6032bfcdfd82156028a714f586a38c71ab48c",
+      "runtimeReport": "wine-direct3d-shell_smoke.runtime.jsonl"
+    },
+    {
+      "name": "wine-direct3d-geometry_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_geometry_native.py",
+        "--backend",
+        "direct3d",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 0.916,
+      "log": "wine-direct3d-geometry_native.log",
+      "sha256": "9c0ecb7e61292f1fc4027cfb653bae917d16588541209c6591bed9bc4ca97f5e",
+      "runtimeReport": "wine-direct3d-geometry_native.runtime.jsonl"
+    },
+    {
+      "name": "wine-direct3d-timing_native",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_timing_native.py",
+        "--backend",
+        "direct3d",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 1,
+      "result": "fail",
+      "seconds": 0.817,
+      "log": "wine-direct3d-timing_native.log",
+      "sha256": "4cdbab3be634469df51b81f4aa644755107a3fde273cdc085d4721272f6d96b4",
+      "runtimeReport": "wine-direct3d-timing_native.runtime.jsonl"
+    },
+    {
+      "name": "wine-direct3d-geometry-pcf",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tests/sv_geometry_native.py",
+        "--backend",
+        "direct3d",
+        "--pcf",
+        "--wine",
+        "--binary",
+        "/tmp/sv19-final-evidence/wine-bin/tomenet-sv.exe"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 1.067,
+      "log": "wine-direct3d-geometry-pcf.log",
+      "sha256": "40e0fb4a9ef9fcd097ae51fe51857088b3028d0e230b4c5f3aabb4c1885fe162",
+      "runtimeReport": "wine-direct3d-geometry-pcf.runtime.jsonl"
+    },
+    {
+      "name": "registry",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tools/validate_capabilities.py",
+        "--manifest",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/manifest.json",
+        "--ledger",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/native-coverage.json",
+        "--evidence",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/native-evidence.json",
+        "--inventory-index",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/inventories/index.json",
+        "--reconciliation",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/reconciliation.json",
+        "--source-root",
+        "tomenet=/home/svechnik/Projects/tomenet_modern_client"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 6.483,
+      "log": "registry.log",
+      "sha256": "2618b710432255c948500351ad19aec33a9af3498e8164bd8852bb8f37cea614",
+      "runtimeReport": "registry.runtime.jsonl"
+    },
+    {
+      "name": "html-sync",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tools/html_capabilities.py",
+        "sync",
+        "--canonical",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/manifest.json",
+        "--consumer",
+        "/tmp/sv19-final-evidence/html-consumer",
+        "--source-root",
+        "tomenet=/home/svechnik/Projects/tomenet_modern_client"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 8.587,
+      "log": "html-sync.log",
+      "sha256": "95d1738de86940ad3eb35d077f425e59c2bc2ee22793dffd44561ace429d179a",
+      "runtimeReport": "html-sync.runtime.jsonl"
+    },
+    {
+      "name": "html-check",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tools/html_capabilities.py",
+        "check",
+        "--canonical",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/manifest.json",
+        "--consumer",
+        "/tmp/sv19-final-evidence/html-consumer",
+        "--source-root",
+        "tomenet=/home/svechnik/Projects/tomenet_modern_client"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 16.445,
+      "log": "html-check.log",
+      "sha256": "95d1738de86940ad3eb35d077f425e59c2bc2ee22793dffd44561ace429d179a",
+      "runtimeReport": "html-check.runtime.jsonl"
+    },
+    {
+      "name": "candidate-evidence-check",
+      "command": [
+        "/tmp/sv15-venv/bin/python",
+        "-B",
+        "tools/validate_capabilities.py",
+        "--manifest",
+        "/home/svechnik/Projects/tomenet_modern_client/docs/capabilities/manifest.json",
+        "--ledger",
+        "/tmp/sv19-final-evidence/candidate-ledger.json",
+        "--evidence",
+        "/tmp/sv19-final-evidence/candidate-evidence.json",
+        "--checkpoint",
+        "stage-a",
+        "--source-root",
+        "tomenet=/home/svechnik/Projects/tomenet_modern_client",
+        "--source-root",
+        "stage-a=/tmp/sv19-final-evidence",
+        "--source-root",
+        "mingw-sdk=/tmp/sv16-sdk-final"
+      ],
+      "returncode": 0,
+      "result": "pass",
+      "seconds": 38.007,
+      "log": "candidate-evidence-check.log",
+      "sha256": "4fa08b10911bb936f1047740bc0154907e11ffdf735554e9637af5918dd04dfe",
+      "runtimeReport": "candidate-evidence-check.runtime.jsonl"
+    }
+  ],
+  "acceptance": "blocked",
+  "siblingSynchronized": false,
+  "limitations": [
+    "Physical DPI/monitor transitions and physical 4K timing unverified.",
+    "Actual Windows 10/11 and Fedora41 shipping baseline unverified.",
+    "Synthetic peer only: no live login, complete gameplay or shipping archives.",
+    "B\u2013F capabilities remain pending; no stress/soak, recording or global memory ceiling gate."
+  ],
+  "legacyUnchangedBySvBuild": true,
+  "mingwSdk": {
+    "packages": {
+      "sdl": [
+        "https://github.com/libsdl-org/SDL/releases/download/release-3.4.0/SDL3-devel-3.4.0-mingw.tar.gz",
+        "991cb59e28328a3e4598515e181011e5041f5111bae0ec83cca7eedfd25a1f86"
+      ],
+      "ttf": [
+        "https://github.com/libsdl-org/SDL_ttf/releases/download/release-3.2.2/SDL3_ttf-devel-3.2.2-mingw.tar.gz",
+        "bb57f26787d6a2e108158562feb061fcdf6f68a110f9c8cf9af42ff343d4e41c"
+      ],
+      "freetype": [
+        "https://github.com/freetype/freetype/archive/refs/tags/VER-2-13-3.tar.gz",
+        "bc5c898e4756d373e0d991bab053036c5eb2aa7c0d5c67e8662ddc6da40c4103"
+      ]
+    },
+    "compiler": "i686-w64-mingw32-gcc (GCC) 16.2.0\nCopyright (C) 2026 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+    "recipeSha256": "dbb9af552aee7b86e5e1b12b8fe7ffc10daf346cff0489730997fa1470f8ba0d",
+    "pkgConfigVersions": [
+      "3.4.0",
+      "3.2.2",
+      "26.2.20"
+    ],
+    "files": {
+      "SDL3-3.4.0/i686-w64-mingw32/bin/SDL3.dll": "690591f10bb7dbbec3701dc09c01ed055a5df62abce7a5faa282eaebd4081ef4",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL.h": "a25d75bf2ad60385a136b6904cfbe4789397bb816152468460c086cec437d4db",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_assert.h": "dcabe4b9a040ebcc50c1119dc3797a232c9f4658496421c52425ae8db22f2fdc",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_asyncio.h": "e9e4074f1b35bda21f3e1d97259f03c65e2dc6da9c5f218d29890475c9306da6",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_atomic.h": "fddee850980f33af72a2ee13a362e6bfdad2f41180e252ab4eb6228634b3147d",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_audio.h": "c11fdcfdff8ca1d2f91efc01a5e3fbf10c8b2dcfc8d736feafbba1bd95fa9f3e",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_begin_code.h": "02f82223b933ad07ea6806a7a6d09a93a0bb6873550712ce28227961fdbf51a9",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_bits.h": "1fcf06b747c667e53bb6cf9d017d5abc5a29ad883c05eedfcfb021c571b61592",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_blendmode.h": "8406acc439c395ac49ea779c2d382a12da97832531398f68e83b6d680cc03fc5",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_camera.h": "bde695476ded6790c1028f65f226bb47703464990f326cb4daa816cd1e572f7c",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_clipboard.h": "fc8e71040ff4c85a813f9f47af56cf8f466ee19b9ec9f58db3f0eb2898adfd13",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_close_code.h": "ce3ca73e7fd5293310fd155692c58b5e82e516f1a8267f84d0af572c8398e3e9",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_copying.h": "64436d5078d6742f11c8b0acf8bc87237d15da36716eb2552986a8b45c419967",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_cpuinfo.h": "bdb603c36c59f720d2f1c02330e4a4f9b63e0461ac9d1796fb4afe9922666b2a",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_dialog.h": "896370203ae43ad52839b5f01053c854b078f0a2be7374190cb76367fce94358",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_dlopennote.h": "d4ad6bf34022634642af80ca76cea9dc0714570ecf85d75f930b4d777c8821f1",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_egl.h": "648d431c8c51bafeac9036db17c3ee5fdea6b6b7b8fe1b86d8b7541630d7cddb",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_endian.h": "629e7417797d00058a62513344f274e41583ca7c53aa1d51f7b99b0cb6a9ca0c",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_error.h": "7d294ba3e994b89a42bc6346e7e59bff82fbce2d050f7cdb189d8f45f31795f2",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_events.h": "d889e223be66491c8022fdf72e9461ef005dc65914ce015da7d9d52411624804",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_filesystem.h": "e7ad2d6e6c9d20fca1e4704686b44fdfc62c58e05511e49424c38c7016543d67",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_gamepad.h": "09515b1ddfbc432a20f1d57f6116b978f51360fee7a00dc374ac94a9a5322578",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_gpu.h": "ef86dc1ecf74995909979bd4628002dabdb9232e53af96116e7b4488491b30d6",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_guid.h": "0629f5b5f3fdd6bfc252d7beab1af214e1214574cc51e72871e2c0f9c308e69a",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_haptic.h": "32bdb8c48839a55545bdbd992cbfd43c8a67ca8fafabfc961b9e82fa3a236c18",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_hidapi.h": "86b36703c4dba72fd5e082c679afd591770a1ddb6934a5191615db649dc3e38f",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_hints.h": "11e120fb06ca65a5b4fae2bb5539311580c43823870a59cb51f8ae6530fddff0",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_init.h": "a56aede03f31563da0ef0f8987b8302dd153a6fafcde920c73d2645d6bf66782",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_intrin.h": "9873f0762f039472993ec433a3331776f548af0ac0430e277f200415ed2222d1",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_iostream.h": "4253a8990d36b1d29ecaa2e661021eadfc7c4e6ffb7630f94d040177dd048c59",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_joystick.h": "9a36ebc37bdaa30034dbb025c2f1a35414b57a1635ee2038d1d23f5e665e9b5f",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_keyboard.h": "8bd40300ebe2a592ce3e0bf3506301ae1b6ca9214e6c2f182f8725697ded2364",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_keycode.h": "cf8f3bd900b69925204757e27dfdeacdc3ec7e7901ec0862e6bf58d3b43f30bf",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_loadso.h": "2ee703a4dbe54fea84980134c26d21cb87c30df4b7afdfa1a3cc6ca6ef64e09e",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_locale.h": "b34500fc0c94685211fd4c6e15b0272f3ba5dfb50060407c3901c6c9e983985b",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_log.h": "96b57971c67a0ea631f88db51bd29a63fae7a7e6d0dacd9d7885d9f222a47e5d",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_main.h": "d42eda6f256523cfd09c2f40b50ecfe93da5e0bc6f29f48a8cc83f61f57a74e6",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_main_impl.h": "9cb2612a63b331fff7a0d9fc307be9dbc3e1f21c7b0ae64e8181afcb16b4160f",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_messagebox.h": "7fd26a4a17ab80cec0a58c47409a74accc27440d935b79b508e11098982bc0c8",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_metal.h": "ec5b39fa253ba8b1cd87c5e40ef6de36dc32a588f20d5078b011280124b08240",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_misc.h": "ce53806638666ecde452ae3f8bce9a653c8539fe78b8c6fd9585bd4888ec93e0",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_mouse.h": "642d3aa3ecd3739e88915ad29a7176bf05b42efa26db3a2aaa07a5ccccb7b649",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_mutex.h": "2700b2f6798a973125793b4fef4b353cf6bbc012c65758d4191ea82df5d38993",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_oldnames.h": "a461ac4c49c64b5a8ddfc9dfad0a282b55ff08ce29e84858c07b92ad40ae6421",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_opengl.h": "2ea5b106f91bf54a283f761d3efda185a515ed9d61702ac7357274920e69202e",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_opengl_glext.h": "d885e4af07f53083cac1ae90a61ccb39317947ee73e5216506fb25f6ae503324",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_opengles.h": "abc718af7453d169d1e7c7dfdfb5d939a250519bee02df7d42e0d6a65b7e0c85",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_opengles2.h": "d043611c5c1e06e466a623b88d1ee498746295db8cc1f15f1872c19742045217",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_opengles2_gl2.h": "d6ec44b1d73f3afce3a20ac6976db7fb3dac656c5190f0b563e4ce90d79a15aa",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_opengles2_gl2ext.h": "4fc5b0034dcde9c125922e3e70d01489a6b335076856ee660294e1a6305a3719",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_opengles2_gl2platform.h": "4779be999acd1904458238f09c86983b7960ac40e612e05db2db97db615f1e0f",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_opengles2_khrplatform.h": "7b1e01aaa7ad8f6fc34b5c7bdf79ebf5189bb09e2c4d2e79fc5d350623d11e83",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_pen.h": "9637f6486eeb48f7ae8bf409f81dba19cf1d4a85b7ad148cc6f05ff358917062",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_pixels.h": "ab62e8bdab279ccfb7fdf306862d17caac0af1335909f4ad3d7b0beae21584bb",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_platform.h": "ac9cf309bddc0e7555fbe1d425837bad13ab6887a00a2941be8d4fcdf4b3111a",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_platform_defines.h": "bb6b9f3f77ea05d32b8b0bca12b6c7c19f90b4230cf5e74178d72477fad4ef19",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_power.h": "c752eded83575ee2ca1555f769fcd215602474bb2164e5ff0d68ea5a78c0f01f",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_process.h": "6886e0a07302d459b657073d9c154d4190256beab3e02761add0f99642c733c8",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_properties.h": "ec35fe255638c9474d99e7f7afec8efdfdc3ef35c010fc0129e9ed1274385c16",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_rect.h": "f2a3aac7f28034b59e49dc556ae552dee75810ed8c7c1544be8ef234c3adb1f5",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_render.h": "689a79ded3d7dc7b8b813831c4136b67bc6c76021778b64927a126eb7aa5c015",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_revision.h": "f0f636f253a5456480a6316a9710b0afe0ba2b1281f153f88b9bc305b4a3b868",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_scancode.h": "055b04c228b86451e97c972614a76cb0785a8d869df70ba8cef98b0a96235418",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_sensor.h": "0629da20ce5c42c4cf9b12e3c35ba4caaeb0fb73841bc2a246fcefe260330c43",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_stdinc.h": "d6bbf2478d31953ad077e233d34c2b32c1b305e4dfcbc367dfe5b4f74e6f9ee8",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_storage.h": "39903691a41bea8fe7cb3b949ca3f305fa0cb84d0c69d944b77c67fc28a114a0",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_surface.h": "0c68c18edc05b767334a9657c6a981a6d4f0736b73c530a564b13bf6d007aaec",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_system.h": "e0e5565da3e05c1e9964a5e81c30c077166c30f0e024d4c90296e3ff30bdef9b",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_test.h": "d3b3d881d54137b19347c81c914b52e20f2a89d13c7ca7225270d1dd19b7c925",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_test_assert.h": "4e81b0f08e829abf7ec9bbb3f524c58d4b3dff81070899bf2f69afe64d48a8b5",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_test_common.h": "d9a338d9c44cc39a2e355ea0850a08407623aae1493f7a8cb8f9ec909a1d3c23",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_test_compare.h": "55faf9f8659630a69a410062ea41b922a54a10df774b2f3fe5338ed4fe153a8d",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_test_crc32.h": "8ab40c4a3e116a6182ee135b067c54449463b422dfc417106c6219b4222be27a",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_test_font.h": "b9f0b7dbbfdcd979167a0766014981e04d730073a6080c3c29609d6e08479b16",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_test_fuzzer.h": "6dd147744812442b54ff3ff005b2123683f0bae39b014440b1833c07f38d0709",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_test_harness.h": "32f657a13d89451188134cc667d6d11b3e4553f975a6f17fba426326f5c46182",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_test_log.h": "1a882507eddbec660f02e947de23a0e0b3595baf1e609e567bf0f8cea699ee4d",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_test_md5.h": "86c13419584377686d8be95933f421246aea396e6e1fc8223748453f2a506bf7",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_test_memory.h": "a381268143f2013022d742a77b1e35491fa710cf244d957e5987b8af527ea0da",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_thread.h": "696cf5fbf6f48bd1500692e23032fc15d9a5e1fbc0951feed271bc3349949db9",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_time.h": "dae323ae82b6a4942a4e9418477ed4f284eeac4b815966af2b8ca934842b8e22",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_timer.h": "064b6108b1b9877b40b816937554e784dda6c00ba9f63f0c9ee06db0a67a9e15",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_touch.h": "2248db7eb31d850dc6f7784097acb250c1bafe6508b3e91550478ffffd465261",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_tray.h": "65d74cb1727af7cb9029cbdad9cd6d0a7b9fe782efef05fec89fff267ca45036",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_version.h": "e51b8114aecab6a7a7134e3682e45ec8123558bcb76d9e9737864176b069c6c1",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_video.h": "46fc75b403c5d9ec5a9e3cd258cce38d59ec2d3c5c2fc4fde1d9637fc811fe77",
+      "SDL3-3.4.0/i686-w64-mingw32/include/SDL3/SDL_vulkan.h": "a0d1b8c6a2a7982e419dbdb8ea60fce09e99390238634ca117d82442953a4e1c",
+      "SDL3-3.4.0/i686-w64-mingw32/lib/cmake/SDL3/SDL3Config.cmake": "0496ba53884ea38c44131a513a24ed9507689da1140523a48e1c1eaabb64a5dc",
+      "SDL3-3.4.0/i686-w64-mingw32/lib/cmake/SDL3/SDL3ConfigVersion.cmake": "40d9d290bcb0d8f38bc057438d3b08f775b2148443e8de6e0a876fed9e131b6d",
+      "SDL3-3.4.0/i686-w64-mingw32/lib/cmake/SDL3/SDL3headersTargets.cmake": "7b4ce4bfb8eaeb2c77109e0675bec1e6d33ed8982457f40fdba938ced514b480",
+      "SDL3-3.4.0/i686-w64-mingw32/lib/cmake/SDL3/SDL3sharedTargets-release.cmake": "3193a0e52578ba3eb829101ccf9e4a1b698392517ed03961bcd84b715a4c1459",
+      "SDL3-3.4.0/i686-w64-mingw32/lib/cmake/SDL3/SDL3sharedTargets.cmake": "ff82a9738c39743e8ca786a8e3e5e2d336396aedb96933d5e3c09847e1058107",
+      "SDL3-3.4.0/i686-w64-mingw32/lib/cmake/SDL3/SDL3testTargets-release.cmake": "32c62c6f22bae307f8b202bc696fe6829c0a5206574fbf0dd5528b8b97368934",
+      "SDL3-3.4.0/i686-w64-mingw32/lib/cmake/SDL3/SDL3testTargets.cmake": "f635fd28ce95a8b6f66cf128c0fc751d5ac14bb28caa50454ee36900ec6bb741",
+      "SDL3-3.4.0/i686-w64-mingw32/lib/libSDL3.dll.a": "48a3c2bc4aa9dc0c22aec865a2338df12f49b1c1fcf31b79848bd0ee470d135c",
+      "SDL3-3.4.0/i686-w64-mingw32/lib/libSDL3_test.a": "a17d9fe8ab44fe6b29eba89de9be0c09f49f65b2a9ae87b64f2e4a32cc7e47b0",
+      "SDL3-3.4.0/i686-w64-mingw32/lib/pkgconfig/sdl3.pc": "01cb1fb02457f37e3932726163942d862eb812f2a696a29f00d129e8b6a64678",
+      "SDL3-3.4.0/i686-w64-mingw32/share/licenses/SDL3/LICENSE.txt": "97f35b302b361680ec1e891e95d2d52097bb95abff361434916d99dc1305f127",
+      "SDL3_ttf-3.2.2/i686-w64-mingw32/bin/SDL3_ttf.dll": "fa134e534f0dd2b807dcd9a0622943a4828292f3d8bdaf9cf15ec984b639fa50",
+      "SDL3_ttf-3.2.2/i686-w64-mingw32/include/SDL3_ttf/SDL_textengine.h": "524dbb153cec5a86324a928cd60930081fecbd2c6c706562b8ccdc6bdde02cff",
+      "SDL3_ttf-3.2.2/i686-w64-mingw32/include/SDL3_ttf/SDL_ttf.h": "e9bb02094a7751cded0a9fb45f1c3b4edd35f9457c6eb6b960dd5d163a5104bd",
+      "SDL3_ttf-3.2.2/i686-w64-mingw32/lib/cmake/SDL3_ttf/SDL3_ttf-shared-targets-release.cmake": "bf4b069338516a8802d5b7fe55b68672eb3f5a06cef410f5d8ce5df9e166ec80",
+      "SDL3_ttf-3.2.2/i686-w64-mingw32/lib/cmake/SDL3_ttf/SDL3_ttf-shared-targets.cmake": "125954d21a0ba50b0e2b01713af2dfdee93b9e1a38d723389997666b4b738c0d",
+      "SDL3_ttf-3.2.2/i686-w64-mingw32/lib/cmake/SDL3_ttf/SDL3_ttfConfig.cmake": "d46b789dab6c40307433606a71e2a7da17c14b9c3c7291940a93f2ac0729a479",
+      "SDL3_ttf-3.2.2/i686-w64-mingw32/lib/cmake/SDL3_ttf/SDL3_ttfConfigVersion.cmake": "740d93488e9ecb29ecdef2ba0cc1271d53df8df231b5a71cae3a165510c18612",
+      "SDL3_ttf-3.2.2/i686-w64-mingw32/lib/libSDL3_ttf.dll.a": "f5ef1d3a82ddaeabb284e1b40182521658d65b9b72d45ee760fe0daba821ad54",
+      "SDL3_ttf-3.2.2/i686-w64-mingw32/lib/pkgconfig/sdl3-ttf.pc": "8c0ede02c0f4c514bf095bb395231c94ea786fe53c851005086e018fe816b7ba",
+      "SDL3_ttf-3.2.2/i686-w64-mingw32/share/licenses/SDL3_ttf/LICENSE.txt": "7826eca0a0f7e591f38dd844e207a200aac81a59b20d8a30c3af8c6282af13e6",
+      "freetype-i686/include/freetype2/freetype/config/ftconfig.h": "7caf12036163a655dded82d63520f4e9e3145e1c4fae8ee86702e6632b30d6a4",
+      "freetype-i686/include/freetype2/freetype/config/ftheader.h": "0e731fa6a148f64ff15274423553ec187a1aef297d130c430ff07951554ef8a1",
+      "freetype-i686/include/freetype2/freetype/config/ftmodule.h": "61c76e01106e7b7c80f39f8d6fd479b5323b54d757c9a2cb66d07064ef616649",
+      "freetype-i686/include/freetype2/freetype/config/ftoption.h": "6a14a03776c822b4c528cb05de40e3fea2b87649984a4fb3a852bee87c0f63d9",
+      "freetype-i686/include/freetype2/freetype/config/ftstdlib.h": "fafd7eb672702cb2dc20b7e7e19540d251a3d978745821bc0632ba807c8b6f46",
+      "freetype-i686/include/freetype2/freetype/config/integer-types.h": "8cc533596bff2f044823853f5d394bc697d6572c9c664f6beaaa67e066bfe162",
+      "freetype-i686/include/freetype2/freetype/config/mac-support.h": "557701edb1bf2c98e38c7331e7522b4c35d390cb9899461d2eea4a74ab460196",
+      "freetype-i686/include/freetype2/freetype/config/public-macros.h": "eb069473a8fbd2342388fbaade8f1159428b3b7a95a070a16eb84c16cd26316c",
+      "freetype-i686/include/freetype2/freetype/freetype.h": "b8d8b9e32b2956cce3a9c5d9b8d18041fb7451acb747805c20b62bf1b4804cdb",
+      "freetype-i686/include/freetype2/freetype/ftadvanc.h": "f8a70e19eac6782a5e6f5199c3cf6922c3cde46a10ffb71fa85f93cd0cf8f6db",
+      "freetype-i686/include/freetype2/freetype/ftbbox.h": "3d04ed642305afb3b2287ef0aba26577748acd581b6bf5df263770af4a3fedc6",
+      "freetype-i686/include/freetype2/freetype/ftbdf.h": "84cdb9ad4caadaee343fe2f3591dcea62aeaa5bf21d5c5595214f38906c58310",
+      "freetype-i686/include/freetype2/freetype/ftbitmap.h": "aba4a5afc772eb002e2fc98ae41dc86b7cbd634a2ccc7c5fcc31861846fa9fc5",
+      "freetype-i686/include/freetype2/freetype/ftbzip2.h": "76c9e1a31ebe293af5989d18c742a33a1869b4cc1ef4dfc3a535fa10a09862cb",
+      "freetype-i686/include/freetype2/freetype/ftcache.h": "ef9835cc69d1bb496605632817d571ecd00691fe986f5e08c552cdf8b56aabd6",
+      "freetype-i686/include/freetype2/freetype/ftchapters.h": "c7d1c2ca13903fb6d0b3b37850344d805280856fb87c7597087ce2352573f752",
+      "freetype-i686/include/freetype2/freetype/ftcid.h": "e5c70ccb41b3c50a9958eee55e10407b2190a4afa1640e8c08c251fe1c0f826a",
+      "freetype-i686/include/freetype2/freetype/ftcolor.h": "ba543bb2f608e8e1d6c97e7cd3da0a9e7ac23af4586bc3db75ca24750ef94692",
+      "freetype-i686/include/freetype2/freetype/ftdriver.h": "cf44747d59263798e482ae5b932732b7729b75744014849d1001c4bdd4446c11",
+      "freetype-i686/include/freetype2/freetype/fterrdef.h": "b83e0829b58949afede67e2f8a2fc9b3cafad9e3b4fd11d7ee9c87bd92c6d6c0",
+      "freetype-i686/include/freetype2/freetype/fterrors.h": "12e955a5cb109519ee4421a03d4a5c324986c8fa01296eaa56e144e2851927ec",
+      "freetype-i686/include/freetype2/freetype/ftfntfmt.h": "70b57ca7ae6f18403c0bfd2e58ab5e566f42026f25809f7b16fe147e686d4625",
+      "freetype-i686/include/freetype2/freetype/ftgasp.h": "83af54183584ad16843b3d0d54eb63e4776bd0cce2d4b8a68cd80b718d740b76",
+      "freetype-i686/include/freetype2/freetype/ftglyph.h": "7b13bb1d8501458cd35b7a279c01c1ee89417ceefa516b8eb416d175fe8df9e6",
+      "freetype-i686/include/freetype2/freetype/ftgxval.h": "ff9b9e6d8bac9008c3f3404db8eefbe086632ba3dcbd925e59934d87e771535c",
+      "freetype-i686/include/freetype2/freetype/ftgzip.h": "56d7d349af43263a2507cbb7260669f8acd4db2dce08f7a7e7df9d701144de12",
+      "freetype-i686/include/freetype2/freetype/ftimage.h": "6245bd165b8a2f5ea6615be6cfc51aa8327ecbea45f42cbce2b8fb625f84574a",
+      "freetype-i686/include/freetype2/freetype/ftincrem.h": "b5bbf21a6d94d500dd334a99eaf27364fd701d696d8891fd1df013aa0a223b3b",
+      "freetype-i686/include/freetype2/freetype/ftlcdfil.h": "96f6c9bac843c30f3d329760e8f5ea061d958ba302682d69a50d953c193f73bf",
+      "freetype-i686/include/freetype2/freetype/ftlist.h": "47d82894f2c3e187b8659d1966fdba44348c1739a88751a5a42a5a97c7a209ce",
+      "freetype-i686/include/freetype2/freetype/ftlogging.h": "adfcb1f6c6ff73b6bfed707c74d7c22e2aea7528de728588eb051b4ecb18f279",
+      "freetype-i686/include/freetype2/freetype/ftlzw.h": "2d5bf1d9075275776e9be7becd793ac079f52982f7db70ec87ea764f637a4fcd",
+      "freetype-i686/include/freetype2/freetype/ftmac.h": "d39f3c3c117dea90597fc51d6bf51c6e6b3708ac60a5fb52e311d90b04da542b",
+      "freetype-i686/include/freetype2/freetype/ftmm.h": "173d1d20553eec5163d9bb18a78acb3a0059e2879618b9edc5632a3e7a6252a3",
+      "freetype-i686/include/freetype2/freetype/ftmodapi.h": "3b05e210b4705017d68e00def6820749fd0fca2f185ab2bb5df06d71928e29eb",
+      "freetype-i686/include/freetype2/freetype/ftmoderr.h": "5d09e4a254f2f6272ae2661720124cae7678f7b846eb536ff728ae2c62f8bde3",
+      "freetype-i686/include/freetype2/freetype/ftotval.h": "21b618c37fb5443b790eac4dd28ec6116240f8aeb3f24f310332bb40928f8060",
+      "freetype-i686/include/freetype2/freetype/ftoutln.h": "b88abdf1e02e5a463f24e892e69408210816b24aec44bfe2ce2a01531fc483b9",
+      "freetype-i686/include/freetype2/freetype/ftparams.h": "8c91f1d3a6e6461b43bd42afd99cbfea9a4cdfa0f4f135c708a50e835af30b44",
+      "freetype-i686/include/freetype2/freetype/ftpfr.h": "e93451ece1f96472c80019dc755c68c2e7aff48b1bd6229b3c86aad41e6ccdee",
+      "freetype-i686/include/freetype2/freetype/ftrender.h": "4faeb7a50ed0ce94d3cdc39de7496055c71f87c26c889784dfa934faf104a0ca",
+      "freetype-i686/include/freetype2/freetype/ftsizes.h": "2f0fea779f9ebf3feea44ff217464767b0269866161d77e180104876ff64de9c",
+      "freetype-i686/include/freetype2/freetype/ftsnames.h": "f28c45069c82b704e769d63cea39ace70ccecf959a3d10becde6c149c92ccc96",
+      "freetype-i686/include/freetype2/freetype/ftstroke.h": "9fc84bf5969448b1adfac20e4920e614fc03a5d5abe53403a8e969593257c125",
+      "freetype-i686/include/freetype2/freetype/ftsynth.h": "18c685e88e016b33878c29fc3ef08cf11c4a244aab2fc58782ebcbd26ee9b615",
+      "freetype-i686/include/freetype2/freetype/ftsystem.h": "07371a83dafbe99e8575a839da3adb69cc2c5a1c8ebe49c3bc9d40f1baf04078",
+      "freetype-i686/include/freetype2/freetype/fttrigon.h": "6de2b389169541a159f10af662f7ca8b5f87e2301c4c7932bbb7030e92659bf6",
+      "freetype-i686/include/freetype2/freetype/fttypes.h": "29dd7f8b460633aa04d4eb7313893e43093643036dd025d384d7b1cc20f71375",
+      "freetype-i686/include/freetype2/freetype/ftwinfnt.h": "55c4863ad6a470209512bc3f3a930af6b691a9f1529ad50227c214aac08143d2",
+      "freetype-i686/include/freetype2/freetype/otsvg.h": "15e331a5e93bed1a870d2ef4628184df85a0b22922cd735b0bcdf9910f3901db",
+      "freetype-i686/include/freetype2/freetype/t1tables.h": "cba11e1aa574916074f6cb2bd2073f437bc418c961981447b4daad297f6e8535",
+      "freetype-i686/include/freetype2/freetype/ttnameid.h": "2a819379237a37af33ee7e63ef8a49c958f767e375177b859b6c3f95fce098de",
+      "freetype-i686/include/freetype2/freetype/tttables.h": "8d8e40ed7c940464831527c171f801daf4b6eae67315d309e379ae51a53e1e6d",
+      "freetype-i686/include/freetype2/freetype/tttags.h": "1bee1d2d0b427d3003617e693f320971104a886c0c60e94e3309740b28a3df83",
+      "freetype-i686/include/freetype2/ft2build.h": "4a6bc059d8e53b189649793aafd26e737d9df0ffafd97b5d6bcbad711bf2548d",
+      "freetype-i686/lib/cmake/freetype/freetype-config-release.cmake": "c33582dc76ef3cce6d47904c736fa23c385f67f16cdb797e844b359b36b94c7c",
+      "freetype-i686/lib/cmake/freetype/freetype-config-version.cmake": "1b71a856c01778fe130db067e2fb9fcba7be7a4a4d7052ca024239097a97fea4",
+      "freetype-i686/lib/cmake/freetype/freetype-config.cmake": "8e727bf6f19e34004898f77e8fd549af3cca2c65d37ab7c6c2f0bde83671e274",
+      "freetype-i686/lib/libfreetype.a": "5650d8d36683785f424904849310b63bf6175e9ab39c8ef1fc8ea6d702dadf0a",
+      "freetype-i686/lib/pkgconfig/freetype2.pc": "a03b6c9a374a8113127faffdcbf7747a028b261f342721b74f816265eb9a42b2",
+      "pkg-config-i686": "18757dfdb5da1132bea3b6b04b7586074000034305ce227adf8b1239c986d7ec"
+    }
+  },
+  "wineStage": {
+    "tomenet-sv.exe": {
+      "source": "/home/svechnik/Projects/tomenet_modern_client/src/tomenet-sv.exe",
+      "sha256": "10a395f835f9640053ec7227c25fa2682af8823ec9246e88cd037e34a6879db0",
+      "imports": [
+        "SDL3.dll",
+        "SDL3_ttf.dll",
+        "KERNEL32.dll",
+        "api-ms-win-crt-convert-l1-1-0.dll",
+        "api-ms-win-crt-environment-l1-1-0.dll",
+        "api-ms-win-crt-heap-l1-1-0.dll",
+        "api-ms-win-crt-locale-l1-1-0.dll",
+        "api-ms-win-crt-math-l1-1-0.dll",
+        "api-ms-win-crt-private-l1-1-0.dll",
+        "api-ms-win-crt-runtime-l1-1-0.dll",
+        "api-ms-win-crt-stdio-l1-1-0.dll",
+        "api-ms-win-crt-string-l1-1-0.dll",
+        "api-ms-win-crt-utility-l1-1-0.dll"
+      ]
+    },
+    "sdl3_ttf.dll": {
+      "source": "/tmp/sv16-sdk-final/SDL3_ttf-3.2.2/i686-w64-mingw32/bin/SDL3_ttf.dll",
+      "sha256": "fa134e534f0dd2b807dcd9a0622943a4828292f3d8bdaf9cf15ec984b639fa50",
+      "imports": [
+        "SDL3.dll",
+        "GDI32.dll",
+        "KERNEL32.dll",
+        "msvcrt.dll",
+        "RPCRT4.dll",
+        "USER32.dll",
+        "USP10.dll"
+      ]
+    },
+    "sdl3.dll": {
+      "source": "/tmp/sv16-sdk-final/SDL3-3.4.0/i686-w64-mingw32/bin/SDL3.dll",
+      "sha256": "690591f10bb7dbbec3701dc09c01ed055a5df62abce7a5faa282eaebd4081ef4",
+      "imports": [
+        "ADVAPI32.dll",
+        "GDI32.dll",
+        "IMM32.DLL",
+        "KERNEL32.dll",
+        "msvcrt.dll",
+        "ole32.dll",
+        "OLEAUT32.dll",
+        "SETUPAPI.dll",
+        "SHELL32.dll",
+        "USER32.dll",
+        "VERSION.dll",
+        "WINMM.DLL"
+      ]
+    }
+  },
+  "registry": {
+    "status": "valid",
+    "summary": {
+      "activeCapabilities": 925,
+      "pendingEvidence": 925,
+      "acceptedCapabilities": 0
+    },
+    "completeness": {
+      "status": "complete",
+      "inventoryIndexSha256": "a568b89e0afa9d9401bc0eb02ea3b0059583629417c32d4593d2efcb23e87ac6",
+      "reconciliationSha256": "95faec7659c989274994fc207117dc73e68f1fb4019d1c732d5b014c0d9f1d1e",
+      "inventories": 24,
+      "inventoryRows": 2077,
+      "dispositions": {
+        "required": 1918,
+        "source-accounting": 67,
+        "excluded": 61,
+        "dead": 25,
+        "directional": 6
+      },
+      "unresolvedRows": [],
+      "scenarios": 10,
+      "acceptedCapabilities": 0
+    },
+    "manifestSha256": "57f4b26e162899c18697d044cdcc3788bd73eb96fe96d28bd9c1049f5c872d5c"
+  },
+  "stageAllocation": {
+    "A": 8,
+    "B": 583,
+    "C": 165,
+    "D": 156,
+    "E": 11,
+    "F": 2
+  },
+  "observations": [
+    {
+      "capabilityId": "capability.status.read-hp",
+      "allocationSha256": "0236d4685b24c8086e571ef418fea7b71c6d3c0585279a99050d25716bd094d1",
+      "obligations": [
+        {
+          "id": "obligation.status.read-hp.primary",
+          "description": "Both HP wire layouts preserve markers; incomplete packets publish nothing and adjacent packets remain readable.",
+          "sources": [
+            "source.baseline.hp",
+            "source.acceptance.hp"
+          ]
+        },
+        {
+          "id": "obligation.status.read-hp.lifecycle",
+          "description": "Native HP surface shows the coherent values; urgent submission, resize/focus and software-rendering obligations apply.",
+          "sources": [
+            "source.baseline.hp",
+            "source.acceptance.hp"
+          ]
+        }
+      ],
+      "checkerClaim": {
+        "capabilityId": "capability.status.read-hp",
+        "implementation": "pending",
+        "status": "pending"
+      },
+      "checks": [
+        "software-hp_checks",
+        "software-lifecycle_native",
+        "software-geometry_native",
+        "software-timing_native",
+        "opengl-hp_checks",
+        "opengl-lifecycle_native",
+        "opengl-geometry_native",
+        "opengl-timing_native",
+        "wine-software-hp_checks",
+        "wine-software-lifecycle_native",
+        "wine-software-geometry_native",
+        "wine-software-timing_native",
+        "wine-direct3d-hp_checks",
+        "wine-direct3d-lifecycle_native",
+        "wine-direct3d-geometry_native",
+        "wine-direct3d-timing_native"
+      ],
+      "scope": "Limited Stage A checkpoint; no full capability acceptance."
+    },
+    {
+      "capabilityId": "capability.messages.read-occurrences",
+      "allocationSha256": "c16d15af43e0abe6c7f0aefed1454af6664cc0ef08b510c83e51c34967160711",
+      "obligations": [
+        {
+          "id": "obligation.messages.read-occurrences.primary",
+          "description": "Identical adjacent messages remain distinct and ordered, including clear sentinel and original bytes.",
+          "sources": [
+            "source.baseline.messages",
+            "source.acceptance.messages"
+          ]
+        },
+        {
+          "id": "obligation.messages.read-occurrences.lifecycle",
+          "description": "View reconstruction does not redispatch messages; required-delivery overflow is explicit and teardown clears session occurrences.",
+          "sources": [
+            "source.baseline.messages",
+            "source.acceptance.messages"
+          ]
+        }
+      ],
+      "checkerClaim": {
+        "capabilityId": "capability.messages.read-occurrences",
+        "implementation": "pending",
+        "status": "pending"
+      },
+      "checks": [
+        "software-message_native",
+        "software-lifecycle_native",
+        "software-geometry_native",
+        "software-timing_native",
+        "opengl-message_native",
+        "opengl-lifecycle_native",
+        "opengl-geometry_native",
+        "opengl-timing_native",
+        "wine-software-message_native",
+        "wine-software-lifecycle_native",
+        "wine-software-geometry_native",
+        "wine-software-timing_native",
+        "wine-direct3d-message_native",
+        "wine-direct3d-lifecycle_native",
+        "wine-direct3d-geometry_native",
+        "wine-direct3d-timing_native"
+      ],
+      "scope": "Limited Stage A checkpoint; no full capability acceptance."
+    },
+    {
+      "capabilityId": "capability.request.answer-key",
+      "allocationSha256": "03e1eb486f13414012d5b507e41424c1dbbb96c5b6a70ad5e68c57dedcb32bc9",
+      "obligations": [
+        {
+          "id": "obligation.request.answer-key.primary",
+          "description": "Native input sends the original signed request ID and chosen key once, then restores parent context.",
+          "sources": [
+            "source.baseline.key-request",
+            "source.acceptance.requests"
+          ]
+        },
+        {
+          "id": "obligation.request.answer-key.lifecycle",
+          "description": "HP/messages continue during the prompt; resize/focus/reconstruction and stale-generation input cannot duplicate a reply.",
+          "sources": [
+            "source.baseline.key-request",
+            "source.acceptance.requests"
+          ]
+        }
+      ],
+      "checkerClaim": {
+        "capabilityId": "capability.request.answer-key",
+        "implementation": "pending",
+        "status": "pending"
+      },
+      "checks": [
+        "software-request_native",
+        "software-lifecycle_native",
+        "software-geometry_native",
+        "software-timing_native",
+        "opengl-request_native",
+        "opengl-lifecycle_native",
+        "opengl-geometry_native",
+        "opengl-timing_native",
+        "wine-software-request_native",
+        "wine-software-lifecycle_native",
+        "wine-software-geometry_native",
+        "wine-software-timing_native",
+        "wine-direct3d-request_native",
+        "wine-direct3d-lifecycle_native",
+        "wine-direct3d-geometry_native",
+        "wine-direct3d-timing_native"
+      ],
+      "scope": "Limited Stage A checkpoint; no full capability acceptance."
+    },
+    {
+      "capabilityId": "capability.request.cancel-key",
+      "allocationSha256": "5a543965054a2187f789a1df0c00cf4e2989ef3fde2b68d8f3821af1b03ee030",
+      "obligations": [
+        {
+          "id": "obligation.request.cancel-key.primary",
+          "description": "Escape sends key zero rather than ASCII 27, once, with the original request ID.",
+          "sources": [
+            "source.baseline.key-request",
+            "source.acceptance.requests"
+          ]
+        },
+        {
+          "id": "obligation.request.cancel-key.lifecycle",
+          "description": "Server abort follows this owner cancellation; repeated abort and old-generation input cannot send another reply.",
+          "sources": [
+            "source.baseline.key-request",
+            "source.acceptance.requests"
+          ]
+        }
+      ],
+      "checkerClaim": {
+        "capabilityId": "capability.request.cancel-key",
+        "implementation": "pending",
+        "status": "pending"
+      },
+      "checks": [
+        "software-request_native",
+        "software-lifecycle_native",
+        "software-geometry_native",
+        "software-timing_native",
+        "opengl-request_native",
+        "opengl-lifecycle_native",
+        "opengl-geometry_native",
+        "opengl-timing_native",
+        "wine-software-request_native",
+        "wine-software-lifecycle_native",
+        "wine-software-geometry_native",
+        "wine-software-timing_native",
+        "wine-direct3d-request_native",
+        "wine-direct3d-lifecycle_native",
+        "wine-direct3d-geometry_native",
+        "wine-direct3d-timing_native"
+      ],
+      "scope": "Limited Stage A checkpoint; no full capability acceptance."
+    },
+    {
+      "capabilityId": "capability.platform.linux-build",
+      "allocationSha256": "ecdd86c372fb74347ed4922d7e394a3a5f35700bb5565ebd60cfcb645dede324",
+      "obligations": [
+        {
+          "id": "obligation.platform.linux-build.result",
+          "description": "Build/package separate tomenet-sv Linux amd64 with Fedora41-class ABI and complete runtime dependency closure; isolated objects and adjacent lib/resources.",
+          "sources": [
+            "source.behavior.settings-sdl3-ed859d",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-tomenet-sv-bed4f5"
+          ]
+        },
+        {
+          "id": "obligation.platform.linux-build.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-sdl3-ed859d",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-tomenet-sv-bed4f5"
+          ]
+        }
+      ],
+      "checkerClaim": {
+        "capabilityId": "capability.platform.linux-build",
+        "implementation": "pending",
+        "status": "pending"
+      },
+      "checks": [
+        "software-arch_native",
+        "software-lifecycle_native",
+        "software-shell_smoke",
+        "software-geometry_native",
+        "software-timing_native",
+        "opengl-arch_native",
+        "opengl-lifecycle_native",
+        "opengl-shell_smoke",
+        "opengl-geometry_native",
+        "opengl-timing_native",
+        "wine-software-arch_native",
+        "wine-software-lifecycle_native",
+        "wine-software-shell_smoke",
+        "wine-software-geometry_native",
+        "wine-software-timing_native",
+        "wine-direct3d-arch_native",
+        "wine-direct3d-lifecycle_native",
+        "wine-direct3d-shell_smoke",
+        "wine-direct3d-geometry_native",
+        "wine-direct3d-timing_native"
+      ],
+      "scope": "Limited Stage A checkpoint; no full capability acceptance."
+    },
+    {
+      "capabilityId": "capability.platform.windows-build",
+      "allocationSha256": "d0b6a404ac40251c1ded93b3f57fe5ff45668e2c4cce99186d12a5b79a8169a8",
+      "obligations": [
+        {
+          "id": "obligation.platform.windows-build.result",
+          "description": "Build/package separate tomenet-sv.exe Windows i686 MinGW32 with required DLL/codecs/resources; do not substitute legacy main-win frontend or Wine for actual Windows10/11.",
+          "sources": [
+            "source.behavior.settings-sdl3-ed859d",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-tomenet-sv-exe-bed4f5"
+          ]
+        },
+        {
+          "id": "obligation.platform.windows-build.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-sdl3-ed859d",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.behavior.settings-tomenet-sv-exe-bed4f5"
+          ]
+        }
+      ],
+      "checkerClaim": {
+        "capabilityId": "capability.platform.windows-build",
+        "implementation": "pending",
+        "status": "pending"
+      },
+      "checks": [
+        "software-arch_native",
+        "software-lifecycle_native",
+        "software-shell_smoke",
+        "software-geometry_native",
+        "software-timing_native",
+        "opengl-arch_native",
+        "opengl-lifecycle_native",
+        "opengl-shell_smoke",
+        "opengl-geometry_native",
+        "opengl-timing_native",
+        "wine-software-arch_native",
+        "wine-software-lifecycle_native",
+        "wine-software-shell_smoke",
+        "wine-software-geometry_native",
+        "wine-software-timing_native",
+        "wine-direct3d-arch_native",
+        "wine-direct3d-lifecycle_native",
+        "wine-direct3d-shell_smoke",
+        "wine-direct3d-geometry_native",
+        "wine-direct3d-timing_native"
+      ],
+      "scope": "Limited Stage A checkpoint; no full capability acceptance."
+    },
+    {
+      "capabilityId": "capability.platform.software-renderer",
+      "allocationSha256": "92b28538fb6dfbbb80f10b4f73558254d16e1d6901cde5ace92518de423e31df",
+      "obligations": [
+        {
+          "id": "obligation.platform.software-renderer.result",
+          "description": "Run mandatory software rendering on Linux and Windows plus supported accelerated path; report actual backend and failures separately.",
+          "sources": [
+            "source.behavior.settings-sdl3-ed859d",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.platform.software-renderer.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-sdl3-ed859d",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        }
+      ],
+      "checkerClaim": {
+        "capabilityId": "capability.platform.software-renderer",
+        "implementation": "pending",
+        "status": "pending"
+      },
+      "checks": [
+        "software-arch_native",
+        "software-lifecycle_native",
+        "software-shell_smoke",
+        "software-geometry_native",
+        "software-timing_native",
+        "opengl-arch_native",
+        "opengl-lifecycle_native",
+        "opengl-shell_smoke",
+        "opengl-geometry_native",
+        "opengl-timing_native",
+        "wine-software-arch_native",
+        "wine-software-lifecycle_native",
+        "wine-software-shell_smoke",
+        "wine-software-geometry_native",
+        "wine-software-timing_native",
+        "wine-direct3d-arch_native",
+        "wine-direct3d-lifecycle_native",
+        "wine-direct3d-shell_smoke",
+        "wine-direct3d-geometry_native",
+        "wine-direct3d-timing_native"
+      ],
+      "scope": "Limited Stage A checkpoint; no full capability acceptance."
+    },
+    {
+      "capabilityId": "capability.platform.one-window",
+      "allocationSha256": "667fc0fa19098c0f920674a16df0cf8d26c099c75bf960fb2420fdb80aacca8a",
+      "obligations": [
+        {
+          "id": "obligation.platform.one-window.result",
+          "description": "Exactly one system SDL_Window with logical native surfaces; controller support, legacy terminal topology and final GCU/terminal fallback are excluded.",
+          "sources": [
+            "source.behavior.settings-sdl3-ed859d",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.platform.one-window.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-sdl3-ed859d",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        }
+      ],
+      "checkerClaim": {
+        "capabilityId": "capability.platform.one-window",
+        "implementation": "pending",
+        "status": "pending"
+      },
+      "checks": [
+        "software-arch_native",
+        "software-lifecycle_native",
+        "software-shell_smoke",
+        "software-geometry_native",
+        "software-timing_native",
+        "opengl-arch_native",
+        "opengl-lifecycle_native",
+        "opengl-shell_smoke",
+        "opengl-geometry_native",
+        "opengl-timing_native",
+        "wine-software-arch_native",
+        "wine-software-lifecycle_native",
+        "wine-software-shell_smoke",
+        "wine-software-geometry_native",
+        "wine-software-timing_native",
+        "wine-direct3d-arch_native",
+        "wine-direct3d-lifecycle_native",
+        "wine-direct3d-shell_smoke",
+        "wine-direct3d-geometry_native",
+        "wine-direct3d-timing_native"
+      ],
+      "scope": "Limited Stage A checkpoint; no full capability acceptance."
+    }
+  ],
+  "fingerprints": {
+    "docs/capabilities/inventories/index.json": "a568b89e0afa9d9401bc0eb02ea3b0059583629417c32d4593d2efcb23e87ac6",
+    "docs/capabilities/manifest.json": "57f4b26e162899c18697d044cdcc3788bd73eb96fe96d28bd9c1049f5c872d5c",
+    "docs/capabilities/native-coverage.json": "fbc21a95e1da9fcc77e255ebfbd54595b7e648cbf54be7751bb6bea61de97d5a",
+    "docs/capabilities/native-evidence.json": "1aa725c5a37c47f7355c83df5ea518d7da2ea9a4ee96fbc3da25b1018ce23f63",
+    "docs/capabilities/reconciliation.json": "95faec7659c989274994fc207117dc73e68f1fb4019d1c732d5b014c0d9f1d1e",
+    "lib/xtra/font/16x24x.pcf": "fb72acdee8d41ed41d2dfc3fc769e4a629e02431376f09485d73be4c5e7758b1",
+    "lib/xtra/font/CascadiaMono-Regular.ttf": "06520d032ec274fa5040b22c6f4a1d829081b24ba40b2da56dae89bf10c7b481",
+    "src/.sv-build/linux/028a446de2f035467aca/build.txt": "0a2a7cc23907a05ae8a3a0543e43f311200fe97c2724719bcee9d35c78ee0609",
+    "src/.sv-build/linux/8c1ae82935084694898c/build.txt": "2c893f8a622737d3557d16c52c74c6622a9894c592cdeb39e40be901473f96b4",
+    "src/.sv-build/linux/9dd5a1e98a672a5b25cd/build.txt": "c5108a8d38f95987d0a0fc5766466cac41faca33980ad835ff69d97488db06c9",
+    "src/.sv-build/linux/d40b159e6018a2bbe18e/build.txt": "9eb12684a169d0e1e3e8d1e62031b39707489cb7decea7a9d446b11dc242fca0",
+    "src/.sv-build/linux/ebab0e4c4e0c5655dfdd/build.txt": "ba087621b8e13db27360efac3da044880c1ec3f930ce6032f91bbff62e3abecb",
+    "src/.sv-build/mingw/0449e4415f5c6125ce01/build.txt": "f8370e85024d6434acc33e95d7b0f2cd0be2260d13fdcb3d578434ce33e1d987",
+    "src/.sv-build/mingw/52b97e595b46e7e2f91c/build.txt": "809126b48b7be9462219e6120bec4e19c188558a3688092c30a20b2896437390",
+    "src/.sv-build/mingw/614ce1f5168bd6c1aa5c/build.txt": "821661e34d8f690cce819b4caa4e7dcc0ba301d62829f9de008484635d2d2f2f",
+    "src/.sv-build/mingw/ba92559ec470a178cd0f/build.txt": "42f4aa0c51bbc32640e292e5f05d3cab362c65918e556ad04f4816f3ae4e2deb",
+    "src/.sv-build/mingw/ec38fb15792483700062/build.txt": "cfd0ae00769214768986e3c98805d2431d741b2eadea9e90b1755e019b0a4637",
+    "src/.sv-build/mingw/fda94f525612adf29445/build.txt": "6c5a61c049737887ae800292e5a21c90aeedc744660027250e874fab2e7c2688",
+    "src/client/sv/app.c": "6b14d41eed6fcf5eeecd5675f55cd10545312cac81fa8a8603f58d263022915e",
+    "src/client/sv/app.h": "555ee817c4d3d5f7c82abc55080e2860d63cc99d91baeb715159bd91195be564",
+    "src/client/sv/diagnostics/runtime.h": "d3ab29a5260e54ff214b66dc5b26717243dcfc1abf95a0a664c444f2c4616274",
+    "src/client/sv/diagnostics/timing.c": "c01dd5d428bb9fcf4e19585df7baabff5223bffd5e35fb47c0e2f88667782980",
+    "src/client/sv/diagnostics/timing.h": "60fa267a33b195eb117cf151d6ddfd9f52bc9f5a27b43582890b859c3e7b135f",
+    "src/client/sv/input/input.c": "cf682d1f66dc35d394f709732698d8c16fee1eef80cfef67e5993b3d99eb85c3",
+    "src/client/sv/input/input.h": "e1953e3dedda185fec3eced1e2ecc9c361f56db3e06672e742eaa6ed8c8b450a",
+    "src/client/sv/input/native-input.c": "6968020397d4d4601ed6b54fd8cab0344b2f8d77563c188f7c7de600c1c22dd0",
+    "src/client/sv/input/native-input.h": "422e77aa3e33d50cd9df29255bc0eda59a702325618c65f5ff52db341e145c7f",
+    "src/client/sv/main.c": "3252e5e28fb415f14a4462420e64981773af164f5b6c5d7dfcc503821b7f661e",
+    "src/client/sv/protocol/hp-update.h": "6232c56e2407f00f20b1e0eb1e6cc2f0b35a62d467d85f9e7f811a70a06b8179",
+    "src/client/sv/protocol/key-request.h": "a0829d79ecb28d11ad20173252b3deae2067ba0173a064a396f56b54e1a06f90",
+    "src/client/sv/protocol/message-update.h": "beef83a9d2cd80b5e6b037184bdf754d2cbb97c64ea045c783c9878c22a2f376",
+    "src/client/sv/protocol/protocol.c": "4c0e5535d94a33eebfaf0a62bdf015bcf34a113259e5b42427004f87d9cf2bb6",
+    "src/client/sv/protocol/protocol.h": "6b27dfb5b98071e81d4e219b26c63f300b43dac9e66bbbbe09a3be37d745fe5d",
+    "src/client/sv/protocol/version.c": "d674827bfc73c53bd51e8db03b16200fbdc2a8eb59fec021fcbe8755443e33fc",
+    "src/client/sv/result.c": "c8cd1c29769549b52dbb8b0de9d9a04404a80bb1d5d1cf835d548c09b8c9b573",
+    "src/client/sv/result.h": "aea7f5f47a949aa7a878f1adc89b1665853e0b3aef54be2343dc2c7e6df56322",
+    "src/client/sv/session/alerts.c": "2dae30471385d4db6c9e20673613a1e7df561de7399f09b3a90a1fe58e85b4ba",
+    "src/client/sv/session/alerts.h": "6ffd67dac7cf6af19587fb2e60f6f1330fa9c5d5a884859bdc5d171781786e19",
+    "src/client/sv/session/session.c": "cb509f6e431b3400c7c47137eb8793dcd38f3e8553914a0148e8be894950f9e7",
+    "src/client/sv/session/session.h": "204248a5723ec241f2631b07156881b2a89cb1ba03fe47209f8f7efd1acabac8",
+    "src/client/sv/ui/font.c": "0b65c4c1fd8fda7ec0ad69af07208d95c962fb26bad495f66cd3f895767d2d85",
+    "src/client/sv/ui/font.h": "d9a570f390b1cb2ee28293349140806f5b29d35d2c3831a19789f66de333cc07",
+    "src/client/sv/ui/message-text.c": "4737fb833916e536f643cec56f2ee03a1a713ca8097a18117711c95a68afceff",
+    "src/client/sv/ui/message-text.h": "4b0eff6968aa090fdf96660742cb157c0c4ee075d14244229ad88c778138a2fe",
+    "src/client/sv/ui/status.c": "1aa5b16695ff853b3763c647b2cd86ed1743b2fab1f3b570903d829fe2632a86",
+    "src/client/sv/ui/status.h": "d7f29dc6b0a74295b1b8ab502d27ff55d75e0be6786b2a94612110a66a9924c2",
+    "src/client/sv/ui/ui.c": "87e4e39d5200ba797cb4a23b344d75a86e3ec61eddd4fc74893409f63a7ea40a",
+    "src/client/sv/ui/ui.h": "eb97d20491337dc0b52f7367ae0ac249856632f3c43bcbf0bb05ab3a7803a313",
+    "src/makefile.sv": "28911f31bff0c71ca67c84d27ada520aec28fc94dbf1dedc867ce984a05003fc",
+    "src/temporary/sv/peer.c": "d795435c34fb86caba643894e1cad64379136058e3724430bb303a8de8a3d11f",
+    "src/temporary/sv/synthetic.c": "23f414718bc66ca5ccb12b321b0b9bd4671bbd101b401983ef9cca0aaca60b95",
+    "src/temporary/sv/synthetic.h": "1f0ea2c8c6332e0efa8ebb0b064471fbf7204a808fb37537830342ab21a022d1",
+    "src/tomenet-sv": "714523fd78c49f6a9fc6b2bd38d93202c478434db2a6bb8ea27184093e7417c7",
+    "src/tomenet-sv.exe": "10a395f835f9640053ec7227c25fa2682af8823ec9246e88cd037e34a6879db0",
+    "tests/sv/architecture.c": "bfeaec40e0019f585fa99d9df9f0c2f5e5b11945954f74658fb388d2d8a390ae",
+    "tests/sv/lifecycle.c": "311f67430455c8021339586b6bd59f2fbcaa2b7fb5fd7644437210cd8e6733ff",
+    "tests/sv/messages.c": "77ae490ff99b287d16f901645dd20ee98404531e4888ae38b30cbdd96f6cef26",
+    "tests/sv/requests.c": "cab81d00e03e46c728ccb9c0123e1747405094f47ff349c5a29d287378651db3",
+    "tests/sv/runtime.c": "d334feaad7f531a3526abbb3cdf30863be761721ac9f6085238cac92ce2af234",
+    "tests/sv/scenarios/arch-scenario.c": "a0f6f642236125452227de9c7592fcb56997495f14321ffe63e7148134aee840",
+    "tests/sv/scenarios/arch-scenario.h": "5c459238489a3d98e85c59d2fc0663b52dd06dba0c328babe4837e7317dd1c04",
+    "tests/sv/scenarios/geometry-scenario.c": "8e0c687f3d5e1a75840b7d893d8924c118bb737de859411c4c6942ad943f56ca",
+    "tests/sv/scenarios/geometry-scenario.h": "8b00bfdff8d9b071862a0d09235fe7c6004ff36fa3d1a858e82c16135b5324c7",
+    "tests/sv/scenarios/hp-scenario.c": "84706211725445808e633386c996b46bd7c09d75357e307e2d1ada5ae0b6c270",
+    "tests/sv/scenarios/hp-scenario.h": "2723b417b540de66797dff8bec106b14bf9af8e6dc829e101f899bc1483e8035",
+    "tests/sv/scenarios/lifecycle-scenario.c": "69b9ce6081fc3a91340bcb0da8758190e200f644f232c8299d679a20d2463217",
+    "tests/sv/scenarios/lifecycle-scenario.h": "7175dc26b8878bad2066e9a04646306f3b96302801a619fc62708b4c2f2965a5",
+    "tests/sv/scenarios/message-scenario.c": "7a637eaf7f53d4ade6cb221fbe1e40db7160178d43f3b50f3413c1beb7d6960a",
+    "tests/sv/scenarios/message-scenario.h": "1b2fcda18404ed489d92471692fd18a5afb4936c3fa032eb4ebff4cacb2079d0",
+    "tests/sv/scenarios/native-frame.c": "64b06e66517b2f56991c9435526a3ef153abc05348c9061af4c7a6720b09eeee",
+    "tests/sv/scenarios/native-frame.h": "8f6bc341064b1d37eb9209bbe5d9c6c8328559b22b7663ab5fc2809837520886",
+    "tests/sv/scenarios/request-scenario.c": "a864dfca4e3820c55380116937e589536f7c5c29380609712f11e181f589052b",
+    "tests/sv/scenarios/request-scenario.h": "15205223287f540289e63474d3baf6eac38a7705e261922b1026bccf6a8b028d",
+    "tests/sv/scenarios/timing-scenario.c": "d4776ea3547b46d8382284c7a2c9257fa93f2b581a8e642c70bbb02c7824aa47",
+    "tests/sv/scenarios/timing-scenario.h": "4a33acc158ebde64e69e911971493bdb3b8c1a065deedcd4d34fd50bc964208d",
+    "tests/sv_arch_checks.py": "b5e891e4b5c058207724d68c5267fd35853c9ad165dc5cf6663781b858f77373",
+    "tests/sv_arch_native.py": "9318deae570421134b4d3e13e3049d60903801efc14b4ac0de8fcef1da79d2a0",
+    "tests/sv_capabilities_checks.py": "bb9f625849e397a1056f1972a11cd8987b344dc49c0151e1abba89babce286e9",
+    "tests/sv_checkpoint_checks.py": "824d56d39e23b9186e50455325349c5bd9075129eb85e38274ab8927a487e9cf",
+    "tests/sv_evidence_checks.py": "5a680bfd828efdbbecbda8d63860881cce8463dd5379223017f1af24aee25c87",
+    "tests/sv_geometry_native.py": "3fc583c9593005d0e60fc7fc0e8604672501ad322317e4b36a0b700fe9e55862",
+    "tests/sv_hp_checks.py": "81607b41a95ae81db811bc9c049c90f1937bb70f2230f12f74d084094ebbb18a",
+    "tests/sv_html_checks.py": "56478a9fa21b4d949a2e4ead31f2a5296cda98da6e97e730c0aaf43e5f233956",
+    "tests/sv_lifecycle_checks.py": "015031d5e5f94c0496081c0c30d9347c5219a8ea10a3b4e259f3b4d153c5603f",
+    "tests/sv_lifecycle_native.py": "436faae55d4cf523ff4ee4747abba92a3abe46e9fa40b90097ecaad57150c816",
+    "tests/sv_message_checks.py": "3f8cfe1f0e67251a783c862969f9191b449eda3295a4ad37c708eb082956b0dc",
+    "tests/sv_message_native.py": "96027511e2fdfeb4647cb758e29b00345ea5fb64cc39ff0d83d1fb7684c0b748",
+    "tests/sv_reconciliation_checks.py": "4b2e4a40eeb118384f5ee1bb3a9063cd6746320cb22b94a24dae73f7bbe86bb9",
+    "tests/sv_request_checks.py": "f464f4082ecbe7ed68c124d792d0010f8d99d10875503ca91357cd7002c178a5",
+    "tests/sv_request_native.py": "c245dd4cb1613777d27f6b414a613605bf54a2928aa75773bdc577886062dc9a",
+    "tests/sv_review_checks.py": "8de0eebda8f92acd768cfa3cfaa00b4a731c62188b202aa90e24311cfcdd537c",
+    "tests/sv_runtime_checks.py": "6c3296346874d691fffc4a8d497bdfad77088e8849362556effd7c2c2fec731c",
+    "tests/sv_runtime_producer_checks.py": "f46d6761d05867138a6bfbd7eab0a94a6b0ae408af971ff695aa57a3caa93d87",
+    "tests/sv_shell_smoke.py": "145584c7899c160cdb417c73067cb0b0945b2b6bac1c5d6808e53b858d707dc4",
+    "tests/sv_timing_native.py": "2e3c92508cf7e688bcb0f221b1375c7427b6caeff658f99b4e7686e54631e1d3",
+    "tools/evidence_dependencies.py": "fe2009e31561b6b5d0063dfa397cae312a3d00b0a920309319dbb930e495d860",
+    "tools/html_capabilities.py": "6c0ca44c185d635b658f5ec54e3026f2ee0eac7efdda152e1f103691d11c0159",
+    "tools/html_claims.py": "4904ed06c353376e076a01f6e616c5450e14eedc053ae16cb9bde97de6dd5b0a",
+    "tools/native_evidence.py": "9d9c8468b228c0bcf5d54b0f4c030cd15be8aeaf4bec467cc9d7d39d2b1e6b71",
+    "tools/prepare_sv_mingw.py": "dbb9af552aee7b86e5e1b12b8fe7ffc10daf346cff0489730997fa1470f8ba0d",
+    "tools/reconcile_capabilities.py": "d2394d6dd1b6835dd5447165257a1fbdceedd37f57cb76cc9a527d375036196f",
+    "tools/run_stage_a.py": "9718586a5201fe4d7d4c222a8f501c3e76d8839b5ac32c3139259aa9da429c49",
+    "tools/stage_a_checkpoint.py": "5a3fe882b175f8f48624ea648229ab0c436df35e26d862699cf683d53ef9978a",
+    "tools/stage_a_provenance.py": "5dd26045e3f6ff22cb3d5177012b3f045762ad47fcb91a4ed68463de21343989",
+    "tools/stage_a_review.py": "c311b564e5e95640990ad68ade0c273f8d54ea892d6360c03fc1663d01de1cc8",
+    "tools/validate_capabilities.py": "bbda4b2111802d07a865d3222ca0ac0829e4da4b5635ea8bfc274698ea2ee4b8"
+  },
+  "fingerprintScope": "See dependencies.json and host-provenance.json for transitive input scope.",
+  "checkpoint": {
+    "name": "stage-a",
+    "status": "passed",
+    "humanReview": "pending",
+    "capabilityAcceptance": "pending",
+    "outcomes": [
+      {
+        "capabilityId": "capability.status.read-hp",
+        "status": "covered"
+      },
+      {
+        "capabilityId": "capability.messages.read-occurrences",
+        "status": "covered"
+      },
+      {
+        "capabilityId": "capability.request.answer-key",
+        "status": "covered"
+      },
+      {
+        "capabilityId": "capability.request.cancel-key",
+        "status": "covered"
+      },
+      {
+        "capabilityId": "capability.platform.linux-build",
+        "status": "covered"
+      },
+      {
+        "capabilityId": "capability.platform.windows-build",
+        "status": "covered"
+      },
+      {
+        "capabilityId": "capability.platform.software-renderer",
+        "status": "covered"
+      },
+      {
+        "capabilityId": "capability.platform.one-window",
+        "status": "covered"
+      }
+    ]
+  },
+  "finished": "2026-09-23T13:38:43.702523+00:00",
+  "failedCommands": 1,
+  "humanReview": {
+    "status": "pending",
+    "reason": "No explicit human review supplied."
+  }
+}

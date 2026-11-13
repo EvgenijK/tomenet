@@ -1,0 +1,562 @@
+[
+  {
+    "backend": "software",
+    "state": "overview",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "49723",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-yxf_f1g4",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "outgoing_hex": "0d0d"
+    }
+  },
+  {
+    "backend": "software",
+    "state": "name",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "35081",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-nlyqk4_j",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "outgoing_hex": "0d0d"
+    }
+  },
+  {
+    "backend": "software",
+    "state": "edit",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "38141",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-n2elaud5",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "outgoing_hex": "0d0d"
+    }
+  },
+  {
+    "backend": "software",
+    "state": "error",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "45905",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-pf4zzavd",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "outgoing_hex": "0d0d"
+    }
+  },
+  {
+    "backend": "software",
+    "state": "scroll",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "51753",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-s2_gij6r",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "outgoing_hex": "0d0d"
+    }
+  },
+  {
+    "backend": "software",
+    "state": "overview",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "58379",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-q2kvnbp1",
+      "--fixture-window",
+      "1024x768"
+    ],
+    "peer": {
+      "outgoing_hex": "0d0d"
+    }
+  },
+  {
+    "backend": "software",
+    "state": "name",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "38381",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-eyg77gva",
+      "--fixture-window",
+      "1024x768"
+    ],
+    "peer": {
+      "outgoing_hex": "0d0d"
+    }
+  },
+  {
+    "backend": "software",
+    "state": "edit",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "47125",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-lczj2pti",
+      "--fixture-window",
+      "1024x768"
+    ],
+    "peer": {
+      "outgoing_hex": "0d0d"
+    }
+  },
+  {
+    "backend": "software",
+    "state": "error",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "32887",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-hu6q8qt0",
+      "--fixture-window",
+      "1024x768"
+    ],
+    "peer": {
+      "outgoing_hex": "0d0d"
+    }
+  },
+  {
+    "backend": "software",
+    "state": "scroll",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "40125",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-42h51huj",
+      "--fixture-window",
+      "1024x768"
+    ],
+    "peer": {
+      "outgoing_hex": "0d0d"
+    }
+  },
+  {
+    "backend": "opengl",
+    "state": "overview",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "34773",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-ons1bqcw",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "outgoing_hex": "0d0d"
+    }
+  },
+  {
+    "backend": "opengl",
+    "state": "name",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "41115",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-pcaxm5_4",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "outgoing_hex": "0d"
+    }
+  },
+  {
+    "backend": "opengl",
+    "state": "edit",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "57615",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-91j8cdhl",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "outgoing_hex": "0d"
+    }
+  },
+  {
+    "backend": "opengl",
+    "state": "error",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "46343",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-3z41b7qd",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "outgoing_hex": "0d"
+    }
+  },
+  {
+    "backend": "opengl",
+    "state": "scroll",
+    "size": [
+      1440,
+      900
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "41307",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-n90wv09b",
+      "--fixture-window",
+      "1440x900"
+    ],
+    "peer": {
+      "outgoing_hex": "0d0d"
+    }
+  },
+  {
+    "backend": "opengl",
+    "state": "overview",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "42561",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-ypfasxjk",
+      "--fixture-window",
+      "1024x768"
+    ],
+    "peer": {
+      "outgoing_hex": "0d0d"
+    }
+  },
+  {
+    "backend": "opengl",
+    "state": "name",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "34611",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-xcgvy0tt",
+      "--fixture-window",
+      "1024x768"
+    ],
+    "peer": {
+      "outgoing_hex": "0d"
+    }
+  },
+  {
+    "backend": "opengl",
+    "state": "edit",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "37831",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-24pr41ew",
+      "--fixture-window",
+      "1024x768"
+    ],
+    "peer": {
+      "outgoing_hex": "0d"
+    }
+  },
+  {
+    "backend": "opengl",
+    "state": "error",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "49045",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-xrs1d4rd",
+      "--fixture-window",
+      "1024x768"
+    ],
+    "peer": {
+      "outgoing_hex": "0d"
+    }
+  },
+  {
+    "backend": "opengl",
+    "state": "scroll",
+    "size": [
+      1024,
+      768
+    ],
+    "command": [
+      "/home/svechnik/Projects/tomenet_modern_client/.scratch/stage-b2-003/tomenet-sv-capture",
+      "--endpoint",
+      "--server",
+      "127.0.0.1",
+      "--port",
+      "33417",
+      "--account",
+      "Test",
+      "--password-stdin",
+      "--library",
+      "/home/svechnik/Projects/tomenet_modern_client/lib",
+      "--profile-root",
+      "/tmp/sv-b2-003-native-4mf0pbns",
+      "--fixture-window",
+      "1024x768"
+    ],
+    "peer": {
+      "outgoing_hex": "0d0d"
+    }
+  }
+]

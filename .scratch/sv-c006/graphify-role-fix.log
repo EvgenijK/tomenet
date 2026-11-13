@@ -1,0 +1,14 @@
+Re-extracting code files in . (no LLM needed)...
+[graphify watch] 2032 file(s) not classified (no supported extension or shebang), skipped: .gitignore, .tomenetrc, 0-ack.bin, 0-ack.bin.reply, 0-ack.log, 0-iddc-ack.bin (+2026 more)
+  AST extraction: 15/15 uncached files (100%)
+  warning: 78 file(s) had syntax errors and may be partially extracted: src/client/c-birth.c (first error at line 66, 20 symbol(s) extracted), src/client/c-cmd.c (first error at line 1, 113 symbol(s) extracted), src/client/c-files.c (first error at line 1, 36 symbol(s) extracted), src/client/c-init.c (first error at line 1, 40 symbol(s) extracted), src/client/c-inven.c (first error at line 1, 13 symbol(s) extracted) (+73 more)
+  warning: 191 code file(s) yielded no symbols (0.78 MB) — a data file, or source this extractor models no symbols for: .scratch/login-architecture/build.py, .scratch/login-architecture/name-forbidden.py, .scratch/login-smoke-2026-11-04/build.py, .scratch/sv-b2-006-corrections/runtime-animation.py, .scratch/sv-b2-006/runtime-large-final.py (+186 more)
+[graphify watch] community set changed since labeling (877 saved labels, 920 communities now; renamed 288 community(ies) by their hub). Run `graphify label` to refresh names with the LLM.
+[graphify] backed up curated graph (5 files) -> 2026-11-09/
+Graph has 21972 nodes (above 5000 limit). Building aggregated community view...
+graph.html written (aggregated: 920 community nodes, 2766 cross-community edges)
+Tip: run with --obsidian for full node-level detail.
+[graphify watch] Rebuilt: 21972 nodes, 58261 edges, 920 communities
+[graphify watch] graph.json, graph.html and GRAPH_REPORT.md updated in graphify-out
+Code graph updated. For doc/paper/image changes run /graphify --update in your AI assistant.
+Tip: set GEMINI_API_KEY or GOOGLE_API_KEY to use Gemini for semantic extraction.

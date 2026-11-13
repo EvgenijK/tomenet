@@ -1,0 +1,11 @@
+SV settings schema=1 diagnostics=0 unsupported=0 writable=1 ui_scale=100 layout=wide fps=100
+SV settings roots user=/tmp/sv-c010-native-k9oo6gx4/profile private=/tmp/sv-c010-native-k9oo6gx4/profile/sv library=/tmp/sv-c010-native-k9oo6gx4/lib
+SV audio requested sound=sound subset=1 music=music subset=1 rate=44100 tracks=32 buffer=1024 cache=1
+SV audio effective counts=0/0 sound= version= music= version= sound_config= music_config=
+SV startup text requested=CascadiaMono-Regular.ttf effective=/tmp/sv-c010-native-k9oo6gx4/lib/xtra/font/CascadiaMono-Regular.ttf
+SV startup window fullscreen=0 ui_scale=100 ignore_dpi=0 renderer=software
+SV endpoint selected host=127.0.0.1 port=34033
+SV contact ready host=127.0.0.1 port=34033 server=4.9.4.0.0.0 races=1 classes=1 traits=1 motd=17
+SV character selected; peer MOTD acknowledgement pending
+SV startup phase=live-session-handoff character=Hero generation=929886218
+SV-C011 native preparation/identity/INS/redraw checks passed

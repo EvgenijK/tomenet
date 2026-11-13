@@ -1,0 +1,19 @@
+{
+  "src/client/sv/settings/config.c": "cc252738bd5c613e1bad2e0f80d703005c64f0bce01a404a8f13b4921233f9a7",
+  "src/client/sv/settings/audio.c": "eefd9390092d379a50942475f205759885533417e2e133fddb9948f9896f09e4",
+  "src/client/sv/settings/options.h": "06496c2ac12aa793fa2ef4525dc7bae064129c0fbceceeb21664f6df9b4228b7",
+  "src/client/sv/settings/audio.h": "20c7e29c6d3ffbdc51d50931fceed88e4d2c58608bc66e21a22ce6cff457e84b",
+  "src/client/sv/settings/config.h": "3d3a9b234653214d5f4a356d8476ab1577110694ee508442deb08c9a2285b67e",
+  "src/client/sv/settings/preferences.c": "0fbf12568dc2b374fb7e584df121b149a2081fe49566e90b3295da4f836db6f0",
+  "src/client/sv/settings/startup.c": "3282119585abe8925aab7fb2730e03627e3685051128c4aef40464d80735e3d5",
+  "src/client/sv/settings/preferences.h": "02c878b6a60ebae9f4b2b4263de03dd62a74bb1bfc57dc57cb2dca76910cb4a8",
+  "src/client/sv/settings/startup.h": "d2ac7b795bf21cd952798b7c619ac3ec69211f3a69539bd4f21da79d588e443a",
+  "src/client/sv/settings/options.c": "f55a2e8aa5e4b7780b77ac8ac133accb787b13bbc4caa8ff40129a5488b8e980",
+  "src/client/sv/login/native-run.c": "b6bd37a908599f1e8dc2af31e18a8215bc37554b303145e08da98747d01ec709",
+  "src/client/sv/login/flow.c": "723131841aade84f7e52a0099fd0729d39baa8cdaaccca8a8fc0ffc07a1ba59d",
+  "src/client/sv/login/options.h": "3d83c892ade4e68bee050780bb1357a6980521d1ae2d2016165c992a51d24000",
+  "src/client/sv/login/flow-internal.h": "a93f43da3bd9e2aad44dcc266b8e8768be653befdbb05bfe3c3c7d5d3670fd2b",
+  "src/makefile.sv": "5b396862f98a6b52a235bef5e608681e5bcfd85ecb168a50d96bb0650da5a72b",
+  "tests/sv/settings-options.c": "c3195719237bcd571c9de0cbc1dfebf845766fc392aac92d7e34e3c78510d6c6",
+  "src/tomenet-sv": "14deb05a45e6997305ba04ec4ba80e79d09ebc43057f474784ca6cf9c12ac9b9"
+}

@@ -1,0 +1,35 @@
+{
+  "capture": "Production renderer, synthetic SvLoginView/SvBirthView, sameproduction source; softwareSDLdummy, scratch display-scale override only. Not a protocol executor.",
+  "sources": {
+    "src/client/sv/ui/endpoint-scene.c": "e3af5dd9c96166f2d16956bd2ea44a20eabd153a5a60b4fad3090137c79932d2",
+    "src/client/sv/ui/login-layout.h": "4b06161f10f85022a713b2d8a8d5eb2ea9c8730b262244bd40de8cc60dd80e10"
+  },
+  "images": {
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/after-name-fractional.png": "39b66099e61d8a92c5b22fab956588bdad217806d9b86c5120b2c3fa1d78c220",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/after-name-min.png": "12cee68ecea1f7dcd519f18ca793dbbcaeac9d8082054ed6f3fd46c18dd6c670",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/after-name-wide.png": "41f940f639d1567a06f3b146221c2f1803fcf7ffc2ac5faa327434a423a60533",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/after-race-fractional.png": "23970e601ee7b5f4ba4babb375ec88d24e9018d789a1b1a0c1efc6e658f3218b",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/after-race-min.png": "5685bdfed79ca34e54f1ff1173d2c7c7f0fc89db222835b830542befa788c302",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/after-race-wide.png": "f8c216d3edf10ce2b38bf70563f0817112a11dfc11a1fe1a5b09518d1236431c",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/after-sex-fractional.png": "ebd5865d32b17b0aed313d61ad40c218ecf460c08e9382aec512f3e68603f26b",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/after-sex-min.png": "44f559b4994bb74e61838dca8d4c2938237f7b75622e08e10aa3d1a832ae45ea",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/after-sex-wide.png": "cb8b96510511c34523ded9add55b2fb96b2935afb56972ac3e7c89b24cfb8993",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/after-stats-fractional.png": "b3eb1bbd330cc5a94f51057eb9bd4c100ee290ba2e8e4c9222303c92bba97e52",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/after-stats-min.png": "8245a378f79a5091efea52d36e72d483699e21ac1b0d12cfe3f6a6be2bd62618",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/after-stats-wide.png": "aa490c2cf952c60c0d181aed4794a45bdd4969a7ba8a77520d3af3c9a27ea1dd",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/after-stress-bottom.png": "12bf9aa43f0a8d52766c608b9b749db59b54c4dc132427da81ba95c782f67213",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/after-stress-top.png": "f180004e63ad23c27676354da73a9f44f0c3b0733d9554b0e7726b035d7439b7",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/before-name-fractional.png": "1fac5beb3ccc44acc60dfd88ab54ad4b6b32e197491710635dd1e242ba4d7568",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/before-name-min.png": "df6f02370a7827208bac99eb9056364120cc9ef0ac168c7772c5c478282a6bc0",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/before-name-wide.png": "c40e43955af028f9b7fda09f8f634f5d1c4b68bd58557f837f4674b8745d7624",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/before-race-fractional.png": "2c1fe87d5a050c9c837eabb522ce86a01a093f86034dccd9c7a6122cd3af267d",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/before-race-min.png": "18ee42cc6fc49ad2cdf967a592fabfc6e1c3c225112c52c10b9afe2465d28872",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/before-race-wide.png": "6c9a913c1cdd3af04ebd3f70830887e74d5258848798a3f051015cac97b1bf22",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/before-sex-fractional.png": "6ec07b42a7f828ce93275b92e96aa030bc15a72352596aedf3019f2afc98089b",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/before-sex-min.png": "81eaaca7a321551195cfa0be98e8bf541923df2711a35dc00e3a2a13eb89f625",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/before-sex-wide.png": "841781fe4608544c8b365345536574cfc65cfc57d9f36add80cce0f5a1ec3e4d",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/before-stats-fractional.png": "dd7497ede9783b8810df464e29fa28d9e2a445182626484fda563a1a05a8fd85",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/before-stats-min.png": "f8161b3b35e23011ec8aafbb268999861f5ad1422daf44d2e0bb501fde6fe372",
+    "/home/svechnik/Projects/tomenet_modern_client/.scratch/sv-b2-birth-style/before-stats-wide.png": "97015b4b58400688327293e991206c8e475e47b74139a1010a8b474c4519536c"
+  }
+}

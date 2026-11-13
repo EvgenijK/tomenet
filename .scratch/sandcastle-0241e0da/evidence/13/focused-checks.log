@@ -1,0 +1,8 @@
+Collecting ordinary: sv_birth_complete_checks.py
+Focused evidence captured; full gates/controller acceptance remain pending
+{"inputs_unchanged": false, "errors": ["Repository input changed: src/common/pack.h"]}
+{"inputs_unchanged": true, "errors": []}
+{"inputs_unchanged": false, "errors": ["Tool/runtime identity or external dependency changed"]}
+{"inputs_unchanged": true, "errors": []}
+{"inputs_unchanged": true, "errors": []}
+Collector closure, production ordinary capture, file and runtime mutation checks passed

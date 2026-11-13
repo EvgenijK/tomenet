@@ -1,0 +1,8 @@
+SV resource unavailable: .scratch/creation-next/profile/xtra/font/CascadiaMono-Regular.ttf (Couldn't open .scratch/creation-next/profile/xtra/font/CascadiaMono-Regular.ttf: No such file or directory); trying declared fallback
+SV endpoint selected host=127.0.0.1 port=54673
+SV contact ready host=127.0.0.1 port=54673 server=4.9.4.0.0.0 races=3 classes=4 traits=4 motd=0
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=europe.tomenet.eu status=ready events=40 bytes=28647
+SV contact failed: Server rejected character selection (status 3).  Press R to retry or Escape to exit. (status=0)
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=na.tomenet.eu status=ready events=40 bytes=28581
+SV Chronicle source=https://www.tomenet.eu/legends.php?server=apac.tomenet.eu status=ready events=40 bytes=28619
+endpoint: .scratch/creation-next/endpoint.c:81: void no_final_request(int): Assertion `poll(&ready, 1, 120) == 0' failed.

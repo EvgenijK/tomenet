@@ -1,0 +1,943 @@
+{
+  "schemaVersion": 1,
+  "stage": "C007",
+  "status": "planned",
+  "snapshotKind": "local-planning-only",
+  "snapshotDate": "2026-11-09",
+  "canonicalSha256": {
+    "stages.json": "e17967e945c425053f8cbe9f4730d5d919fe6fc9598dbf8d694673741b7dcf21",
+    "manifest.json": "68efed03ecade79974e62b9f69a084a47cfa9262952b30b6436a2f2ac5b0b222",
+    "native-coverage.json": "2d7d5ae3e5f5739c93ba512e756f86ba1960dcb9109e5a46b77717e76f103cab",
+    "reconciliation.json": "f44cd0e34c60a291574df42a619ae8f7ea7a5ae58afad3895818700be85743f0"
+  },
+  "reviewedCapabilityCount": 15,
+  "ownedCapabilityIds": [
+    "capability.rendering.glyph-identity",
+    "capability.rendering.terrain-stack",
+    "capability.rendering.tiles",
+    "capability.rendering.subsets",
+    "capability.rendering.palette",
+    "capability.rendering.animation",
+    "capability.rendering.lighting",
+    "capability.rendering.cursor",
+    "capability.rendering.resize",
+    "capability.rendering.cache-generation",
+    "capability.rendering.effects-restore",
+    "capability.rendering.raw-picture",
+    "capability.rendering.weather",
+    "capability.rendering.wipe",
+    "capability.rendering.solid-wall"
+  ],
+  "ticketOwnership": {
+    "capability.rendering.glyph-identity": "SV-C007-003",
+    "capability.rendering.terrain-stack": "SV-C007-003",
+    "capability.rendering.tiles": "SV-C007-001",
+    "capability.rendering.subsets": "SV-C007-001",
+    "capability.rendering.palette": "SV-C007-004",
+    "capability.rendering.animation": "SV-C007-004",
+    "capability.rendering.lighting": "SV-C007-004",
+    "capability.rendering.cursor": "SV-C007-005",
+    "capability.rendering.resize": "SV-C007-005",
+    "capability.rendering.cache-generation": "SV-C007-001",
+    "capability.rendering.effects-restore": "SV-C007-006",
+    "capability.rendering.raw-picture": "SV-C007-006",
+    "capability.rendering.weather": "SV-C007-006",
+    "capability.rendering.wipe": "SV-C007-003",
+    "capability.rendering.solid-wall": "SV-C007-003"
+  },
+  "coverage": [
+    {
+      "capabilityId": "capability.rendering.glyph-identity",
+      "acceptanceStage": "C007",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-pict-sdl3-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s875",
+          "source.allocation-b.s815",
+          "source.allocation-b.s877"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Preserve numeric legacy glyph IDs, source profile mapping, colour/control roles and font default then visible one-cell fallback; no direct TTF raw-byte decoding or guessed PCF origin. Full outcome allocation: stage C007. B live map/normal-big geometry needs Numeric legacy IDs, encoding profile/default glyph и one-cell fallback. Это map behavior раньше E management; все ветви текущего rendering outcome сохраняются."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.glyph-identity.result",
+          "description": "Preserve numeric legacy glyph IDs, source profile mapping, colour/control roles and font default then visible one-cell fallback; no direct TTF raw-byte decoding or guessed PCF origin.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.glyph-identity.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.glyph-identity.allocation-checks",
+          "description": "Numeric legacy IDs, encoding profile/default glyph и one-cell fallback; nonzero PCF origin and no TTF byte guess Production decode→state→surface; Linux software/accelerated and Windows software, updates under overlay, focus/resize/reopen; stage budgets.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s875",
+            "source.allocation-b.s815",
+            "source.allocation-b.s877"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.rendering.terrain-stack",
+      "acceptanceStage": "C007",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-pict-sdl3-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s875",
+          "source.allocation-b.s815",
+          "source.allocation-b.s877"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Keep background, terrain and foreground identities independent through effects/weather/cursor; removing foreground reveals latest terrain state. Full outcome allocation: stage C007. B live map/normal-big geometry needs Background/terrain/foreground identities независимы. Это map behavior раньше E management; все ветви текущего rendering outcome сохраняются."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.terrain-stack.result",
+          "description": "Keep background, terrain and foreground identities independent through effects/weather/cursor; removing foreground reveals latest terrain state.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.terrain-stack.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.terrain-stack.allocation-checks",
+          "description": "Background/terrain/foreground identities независимы; foreground remove раскрывает latest terrain Production decode→state→surface; Linux software/accelerated and Windows software, updates under overlay, focus/resize/reopen; stage budgets.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s875",
+            "source.allocation-b.s815",
+            "source.allocation-b.s877"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.rendering.tiles",
+      "acceptanceStage": "C007",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-pict-sdl3-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s875",
+          "source.allocation-b.s815",
+          "source.allocation-b.s877"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Prepare authored regions and decoded single/two-mask layers to final integer cell size, draw1:1; preserve recolour/background-hole/outline semantics and server gates. Full outcome allocation: stage C007. B live map/normal-big geometry needs Single/two-mask, recolour/background hole/outline decoded then final integer raster1:1. Это map behavior раньше E management; все ветви текущего rendering outcome сохраняются."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.tiles.result",
+          "description": "Prepare authored regions and decoded single/two-mask layers to final integer cell size, draw1:1; preserve recolour/background-hole/outline semantics and server gates.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.tiles.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.tiles.allocation-checks",
+          "description": "Single/two-mask, recolour/background hole/outline decoded then final integer raster1:1; mixed glyph/tile Production decode→state→surface; Linux software/accelerated and Windows software, updates under overlay, focus/resize/reopen; stage budgets.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s875",
+            "source.allocation-b.s815",
+            "source.allocation-b.s877"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.rendering.subsets",
+      "acceptanceStage": "C007",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-pict-sdl3-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s875",
+          "source.allocation-b.s815",
+          "source.allocation-b.s877"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Select independent subtileset/mapping overrides with baseline lookup precedence; preserve mixed tile/glyph content and missing-resource failures. Full outcome allocation: stage C007. B live map/normal-big geometry needs Independent subtileset overrides precedence, missing subset fallback and mixed content identity. Это map behavior раньше E management; все ветви текущего rendering outcome сохраняются."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.subsets.result",
+          "description": "Select independent subtileset/mapping overrides with baseline lookup precedence; preserve mixed tile/glyph content and missing-resource failures.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.subsets.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.subsets.allocation-checks",
+          "description": "Independent subtileset overrides precedence, missing subset fallback and mixed content identity Production decode→state→surface; Linux software/accelerated and Windows software, updates under overlay, focus/resize/reopen; stage budgets.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s875",
+            "source.allocation-b.s815",
+            "source.allocation-b.s877"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.rendering.palette",
+      "acceptanceStage": "C007",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-pict-sdl3-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s875",
+          "source.allocation-b.s815",
+          "source.allocation-b.s877"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Apply canonical palette roles and runtime tint without rebuilding neutral assets; honour lighterDarkBlue, monochrome and allowed custom entries. Full outcome allocation: stage C007. B live map/normal-big geometry needs Runtime palette/tint+lighterDarkBlue/monochrome values не rebuild neutral assets и no stale cache. Это map behavior раньше E management; все ветви текущего rendering outcome сохраняются."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.palette.result",
+          "description": "Apply canonical palette roles and runtime tint without rebuilding neutral assets; honour lighterDarkBlue, monochrome and allowed custom entries.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.palette.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.palette.allocation-checks",
+          "description": "Runtime palette/tint+lighterDarkBlue/monochrome values не rebuild neutral assets и no stale cache Production decode→state→surface; Linux software/accelerated and Windows software, updates under overlay, focus/resize/reopen; stage budgets.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s875",
+            "source.allocation-b.s815",
+            "source.allocation-b.s877"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.rendering.animation",
+      "acceptanceStage": "C007",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-pict-sdl3-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s875",
+          "source.allocation-b.s815",
+          "source.allocation-b.s877"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Preserve animated palette categories, timing, no_flicker/subterm/misc scopes and controlled-RNG semantics, excluding pixel-identical random particles. Full outcome allocation: stage C007. B live map/normal-big geometry needs No_flicker/subterm/misc scopes, timing and controlled RNG preserve category behavior. Это map behavior раньше E management; все ветви текущего rendering outcome сохраняются."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.animation.result",
+          "description": "Preserve animated palette categories, timing, no_flicker/subterm/misc scopes and controlled-RNG semantics, excluding pixel-identical random particles.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.animation.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.animation.allocation-checks",
+          "description": "No_flicker/subterm/misc scopes, timing and controlled RNG preserve category behavior Production decode→state→surface; Linux software/accelerated and Windows software, updates under overlay, focus/resize/reopen; stage budgets.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s875",
+            "source.allocation-b.s815",
+            "source.allocation-b.s877"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.rendering.lighting",
+      "acceptanceStage": "C007",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-pict-sdl3-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s875",
+          "source.allocation-b.s815",
+          "source.allocation-b.s877"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Preserve torch/wall/floor/shading semantics and full-map TERM_SRCLITE timing; fix repeated lower-half big-map pattern rather than preserving defect. Full outcome allocation: stage C007. B live map/normal-big geometry needs Torch/wall/floor shading. Это map behavior раньше E management; все ветви текущего rendering outcome сохраняются."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.lighting.result",
+          "description": "Preserve torch/wall/floor/shading semantics and full-map TERM_SRCLITE timing; fix repeated lower-half big-map pattern rather than preserving defect.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.lighting.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.lighting.allocation-checks",
+          "description": "Torch/wall/floor shading; TERM_SRCLITE big-map нижняя половина не повторяет upper pattern Production decode→state→surface; Linux software/accelerated and Windows software, updates under overlay, focus/resize/reopen; stage budgets.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s875",
+            "source.allocation-b.s815",
+            "source.allocation-b.s877"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.rendering.cursor",
+      "acceptanceStage": "C007",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-pict-sdl3-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s875",
+          "source.allocation-b.s815",
+          "source.allocation-b.s877"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Present semantic self/target/cell indicators with approved HTML design and shared geometry; no required X11 XOR/SDL alpha pixel match. Full outcome allocation: stage C007. B live map/normal-big geometry needs Self/target/cell semantic indicators, geometry/hit aligned с approved UX. Это map behavior раньше E management; все ветви текущего rendering outcome сохраняются."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.cursor.result",
+          "description": "Present semantic self/target/cell indicators with approved HTML design and shared geometry; no required X11 XOR/SDL alpha pixel match.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.cursor.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.cursor.allocation-checks",
+          "description": "Self/target/cell semantic indicators, geometry/hit aligned с approved UX Production decode→state→surface; Linux software/accelerated and Windows software, updates under overlay, focus/resize/reopen; stage budgets.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s875",
+            "source.allocation-b.s815",
+            "source.allocation-b.s877"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.rendering.resize",
+      "acceptanceStage": "C007",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-pict-sdl3-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s875",
+          "source.allocation-b.s815",
+          "source.allocation-b.s877"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Logical UI units map to output pixels with current DPI; integer final-cell geometry fits complete66x22/66x44 centered grid. No crop, map zoom key or permanently scaled whole-window framebuffer. Full outcome allocation: stage C007. B live map/normal-big geometry needs 66x22/66x44 whole centered map with integer final cells, DPI/logical units and no crop/zoom. Это map behavior раньше E management; все ветви текущего rendering outcome сохраняются."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.resize.result",
+          "description": "Logical UI units map to output pixels with current DPI; integer final-cell geometry fits complete66x22/66x44 centered grid. No crop, map zoom key or permanently scaled whole-window framebuffer.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.resize.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.resize.allocation-checks",
+          "description": "66x22/66x44 whole centered map with integer final cells, DPI/logical units and no crop/zoom Production decode→state→surface; Linux software/accelerated and Windows software, updates under overlay, focus/resize/reopen; stage budgets.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s875",
+            "source.allocation-b.s815",
+            "source.allocation-b.s877"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.rendering.cache-generation",
+      "acceptanceStage": "C007",
+      "prerequisites": [
+        "capability.files.resource-overlay"
+      ],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-pict-sdl3-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s875",
+          "source.allocation-b.s815",
+          "source.allocation-b.s877"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Key prepared assets by source/profile/mask/subset/filter/outline/final-size generation in distinct SV namespace; atomically publish; live resize may briefly scale old assets while updates/hit testing continue. Full outcome allocation: stage C007. B live map/normal-big geometry needs Source/profile/mask/subset/filter/outline/size generation. Это map behavior раньше E management; все ветви текущего rendering outcome сохраняются."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.cache-generation.result",
+          "description": "Key prepared assets by source/profile/mask/subset/filter/outline/final-size generation in distinct SV namespace; atomically publish; live resize may briefly scale old assets while updates/hit testing continue.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.cache-generation.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.cache-generation.allocation-checks",
+          "description": "Source/profile/mask/subset/filter/outline/size generation; replacement atomic, stale async discard; resize keeps update/hit Production decode→state→surface; Linux software/accelerated and Windows software, updates under overlay, focus/resize/reopen; stage budgets.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s875",
+            "source.allocation-b.s815",
+            "source.allocation-b.s877"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.rendering.effects-restore",
+      "acceptanceStage": "C007",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-pict-sdl3-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s875",
+          "source.allocation-b.s815",
+          "source.allocation-b.s877"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. After transient effect ends restore current semantic cell including updates underneath and remaining layers; never restore stale raster snapshot. Full outcome allocation: stage C007. B live map/normal-big geometry needs Effect end restores latest semantic cell and remaining layers, not stale saved raster. Это map behavior раньше E management; все ветви текущего rendering outcome сохраняются."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.effects-restore.result",
+          "description": "After transient effect ends restore current semantic cell including updates underneath and remaining layers; never restore stale raster snapshot.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.effects-restore.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.effects-restore.allocation-checks",
+          "description": "Effect end restores latest semantic cell and remaining layers, not stale saved raster Production decode→state→surface; Linux software/accelerated and Windows software, updates under overlay, focus/resize/reopen; stage budgets.",
+          "sources": [
+            "source.behavior.settings-term-pict-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s875",
+            "source.allocation-b.s815",
+            "source.allocation-b.s877"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.rendering.raw-picture",
+      "acceptanceStage": "C007",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-rawpict-37ef28",
+          "source.acceptance.settings-policy-f2aa80"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Prepare raw picture rectangle directly to final size with selected graphics filter, retaining anchors/extents/clipping and special-canvas transform; do not impose ordinary tile masks."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.raw-picture.result",
+          "description": "Prepare raw picture rectangle directly to final size with selected graphics filter, retaining anchors/extents/clipping and special-canvas transform; do not impose ordinary tile masks.",
+          "sources": [
+            "source.behavior.settings-rawpict-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.raw-picture.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-rawpict-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.rendering.weather",
+      "acceptanceStage": "C007",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-do-weather-9f2563",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.protocol.settings-receive-weather-9b42f3",
+          "source.allocation-b.s875",
+          "source.allocation-b.s815",
+          "source.allocation-b.s877"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Preserve weather parameters/type/start/stop/wind and redraw lifecycle, independent overlay and no2mask_weather branch; resize/recreate cannot replay start sounds or freeze packet application. Full outcome allocation: stage C007. B live map/normal-big geometry needs Type/wind/start/stop/volume and no2mask branch. Это map behavior раньше E management; все ветви текущего rendering outcome сохраняются."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.weather.result",
+          "description": "Preserve weather parameters/type/start/stop/wind and redraw lifecycle, independent overlay and no2mask_weather branch; resize/recreate cannot replay start sounds or freeze packet application.",
+          "sources": [
+            "source.behavior.settings-do-weather-9f2563",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-weather-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.rendering.weather.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-do-weather-9f2563",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-weather-9b42f3"
+          ]
+        },
+        {
+          "id": "obligation.rendering.weather.wire",
+          "description": "Exercise each version/build branch of Receive_weather (exact pinned body in settings reconciliation), including split/chained packets, original signedness/colour/control bytes and error responses. A partial frame commits nothing; complete changes retain order. Observe real emitted bytes and lifecycle, not only a screenshot.",
+          "sources": [
+            "source.protocol.settings-receive-weather-9b42f3",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.weather.allocation-checks",
+          "description": "Type/wind/start/stop/volume and no2mask branch; redraw/resize not duplicate start sound Production decode→state→surface; Linux software/accelerated and Windows software, updates under overlay, focus/resize/reopen; stage budgets.",
+          "sources": [
+            "source.behavior.settings-do-weather-9f2563",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.protocol.settings-receive-weather-9b42f3",
+            "source.allocation-b.s875",
+            "source.allocation-b.s815",
+            "source.allocation-b.s877"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.rendering.wipe",
+      "acceptanceStage": "C007",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-wipe-sdl3-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s875",
+          "source.allocation-b.s815",
+          "source.allocation-b.s877"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Clearing a semantic rectangle removes previous glyph/tile/cursor content, preserves unaffected cells and reconstructs current state on repaint. Full outcome allocation: stage C007. B live map/normal-big geometry needs Semantic rectangle clears old glyph/tile/cursor only within range. Это map behavior раньше E management; все ветви текущего rendering outcome сохраняются."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.wipe.result",
+          "description": "Clearing a semantic rectangle removes previous glyph/tile/cursor content, preserves unaffected cells and reconstructs current state on repaint.",
+          "sources": [
+            "source.behavior.settings-term-wipe-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.wipe.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-wipe-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.wipe.allocation-checks",
+          "description": "Semantic rectangle clears old glyph/tile/cursor only within range; repaint reconstructs current state Production decode→state→surface; Linux software/accelerated and Windows software, updates under overlay, focus/resize/reopen; stage budgets.",
+          "sources": [
+            "source.behavior.settings-term-wipe-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s875",
+            "source.allocation-b.s815",
+            "source.allocation-b.s877"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    },
+    {
+      "capabilityId": "capability.rendering.solid-wall",
+      "acceptanceStage": "C007",
+      "prerequisites": [],
+      "conditions": {
+        "sources": [
+          "source.behavior.settings-term-wipe-sdl3-37ef28",
+          "source.acceptance.settings-policy-f2aa80",
+          "source.allocation-b.s875",
+          "source.allocation-b.s815",
+          "source.allocation-b.s877"
+        ],
+        "serverVersions": [
+          "Retain all version branches of the cited owner; local operations require no server. Protocol-dependent consumers keep their existing gates and slot/byte identities."
+        ],
+        "builds": [
+          "Linux amd64 / Windows i686 SV. Preserve conditional compilation and runtime availability of the cited baseline owner; enabled and disabled paths need separate evidence.",
+          "USE_GRAPHICS, GRAPHICS_BG_MASK (dual-mask), TEST_RAWPICT, EXTENDED_COLOURS_PALANIM and per-packet version rules where applicable; ASCII paths still required."
+        ],
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "scope": "Ticket 11 allocation; final ownership/default/raster policy supersedes historical audit proposals. Preserve solid wall and equal-foreground/background solid-block intent; FONT_MAP_SOLID_X11 is a drawing role rather than missing control glyph. Full outcome allocation: stage C007. B live map/normal-big geometry needs Solid walls/equal foreground-background intent is render role, not absent control glyph. Это map behavior раньше E management; все ветви текущего rendering outcome сохраняются."
+      },
+      "evidenceObligations": [
+        {
+          "id": "obligation.rendering.solid-wall.result",
+          "description": "Preserve solid wall and equal-foreground/background solid-block intent; FONT_MAP_SOLID_X11 is a drawing role rather than missing control glyph.",
+          "sources": [
+            "source.behavior.settings-term-wipe-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.solid-wall.failure-lifecycle",
+          "description": "Exercise the production SV caller through its public interface, including success, cancellation and unavailable/invalid input. Verify actual owned paths and unchanged unrelated owners; inject applicable provider/resource/read/write/replace failures and concurrent edits. No false success, duplicate effect on redraw, secret leak or stale session command. Keep platform, enabled/disabled build and requested/effective results distinct; source validation is not native evidence.",
+          "sources": [
+            "source.behavior.settings-term-wipe-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80"
+          ]
+        },
+        {
+          "id": "obligation.rendering.solid-wall.allocation-checks",
+          "description": "Solid walls/equal foreground-background intent is render role, not absent control glyph Production decode→state→surface; Linux software/accelerated and Windows software, updates under overlay, focus/resize/reopen; stage budgets.",
+          "sources": [
+            "source.behavior.settings-term-wipe-sdl3-37ef28",
+            "source.acceptance.settings-policy-f2aa80",
+            "source.allocation-b.s875",
+            "source.allocation-b.s815",
+            "source.allocation-b.s877"
+          ]
+        }
+      ],
+      "implementation": "pending",
+      "reason": "Source-backed allocation only; native implementation and evidence remain pending.",
+      "evidenceStatus": "pending",
+      "evidenceIds": []
+    }
+  ],
+  "reviewedObligationCount": 45,
+  "platformPolicy": "Linux required; Windows/MinGW/Wine deferred per docs/agents/platform-validation.md. Canonical rows preserved verbatim."
+}

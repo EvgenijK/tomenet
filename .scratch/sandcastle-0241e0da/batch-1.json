@@ -1,0 +1,13 @@
+{
+  "tickets": [
+    {
+      "path": ".scratch/sandcastle-0241e0da/issues/09-final-head-runtime-evidence.md",
+      "blockedBy": [
+        ".scratch/sandcastle-0241e0da/issues/08-focused-test-coverage.md"
+      ],
+      "findingIds": [
+        "D-9496281ca15e0741"
+      ]
+    }
+  ]
+}
